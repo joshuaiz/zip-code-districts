@@ -3,13 +3,13 @@
 ## Run locally
 
 ```
-npm install
-npm run dev        # http://localhost:8787  (/districts = React map, /standalone.html = no-build map)
-npm run build      # static output in dist/
-npx astro check    # type-check src/
+yarn install
+yarn dev           # http://localhost:8787  (/districts = React map, /standalone.html = no-build map)
+yarn build         # static output in dist/
+yarn astro check   # type-check src/
 ```
 
-Requires Node 22+. Astro's dev server runs detached; stop it with `npx astro dev stop`.
+Requires Node 22+. Astro's dev server runs detached; stop it with `yarn astro dev stop`.
 
 U.S. House districts built by aggregating adjacent ZIP Code Tabulation Areas (ZCTAs), with four
 non-partisan seeding strategies. No voter, party, race or incumbent data is used anywhere.
@@ -52,7 +52,7 @@ pipeline/                     rebuild everything from raw Census files
 
 ### Astro setup
 ```
-npm i maplibre-gl topojson-client && npm i -D @types/topojson-client
+yarn add maplibre-gl topojson-client && yarn add -D @types/topojson-client
 ```
 Put `ZipDistrictMap.tsx` in `src/components`, copy `public/data`, and render it with
 `client:only="react"`. The container needs a height (the example page uses `h-screen`). The data
