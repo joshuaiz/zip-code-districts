@@ -16,7 +16,10 @@
    "competitive_45_55": 123,
    "harris_seats_at_50_50": 211,
    "lean_r_15plus": 141,
-   "lean_d_15plus": 113
+   "lean_d_15plus": 113,
+   "losing_side_pct": 39.0,
+   "harris_voters_losing_pct": 44.0,
+   "trump_voters_losing_pct": 34.1
   },
   {
    "mode": "splitcounty",
@@ -29,7 +32,10 @@
    "competitive_45_55": 118,
    "harris_seats_at_50_50": 205,
    "lean_r_15plus": 137,
-   "lean_d_15plus": 122
+   "lean_d_15plus": 122,
+   "losing_side_pct": 38.6,
+   "harris_voters_losing_pct": 45.6,
+   "trump_voters_losing_pct": 31.9
   },
   {
    "mode": "county",
@@ -42,7 +48,10 @@
    "competitive_45_55": 116,
    "harris_seats_at_50_50": 206,
    "lean_r_15plus": 138,
-   "lean_d_15plus": 123
+   "lean_d_15plus": 123,
+   "losing_side_pct": 39.0,
+   "harris_voters_losing_pct": 46.0,
+   "trump_voters_losing_pct": 32.2
   },
   {
    "mode": "center",
@@ -55,7 +64,10 @@
    "competitive_45_55": 116,
    "harris_seats_at_50_50": 208,
    "lean_r_15plus": 139,
-   "lean_d_15plus": 122
+   "lean_d_15plus": 122,
+   "losing_side_pct": 38.9,
+   "harris_voters_losing_pct": 43.7,
+   "trump_voters_losing_pct": 34.2
   },
   {
    "mode": "nw",
@@ -68,7 +80,10 @@
    "competitive_45_55": 112,
    "harris_seats_at_50_50": 212,
    "lean_r_15plus": 140,
-   "lean_d_15plus": 120
+   "lean_d_15plus": 120,
+   "losing_side_pct": 38.9,
+   "harris_voters_losing_pct": 45.0,
+   "trump_voters_losing_pct": 33.0
   },
   {
    "mode": "ne",
@@ -81,7 +96,10 @@
    "competitive_45_55": 117,
    "harris_seats_at_50_50": 209,
    "lean_r_15plus": 143,
-   "lean_d_15plus": 121
+   "lean_d_15plus": 121,
+   "losing_side_pct": 39.0,
+   "harris_voters_losing_pct": 44.4,
+   "trump_voters_losing_pct": 33.7
   },
   {
    "mode": "zip",
@@ -94,7 +112,10 @@
    "competitive_45_55": 119,
    "harris_seats_at_50_50": 212,
    "lean_r_15plus": 139,
-   "lean_d_15plus": 119
+   "lean_d_15plus": 119,
+   "losing_side_pct": 39.1,
+   "harris_voters_losing_pct": 43.5,
+   "trump_voters_losing_pct": 34.8
   },
   {
    "mode": "best",
@@ -107,7 +128,10 @@
    "competitive_45_55": 120,
    "harris_seats_at_50_50": 208,
    "lean_r_15plus": 145,
-   "lean_d_15plus": 123
+   "lean_d_15plus": 123,
+   "losing_side_pct": 38.6,
+   "harris_voters_losing_pct": 45.3,
+   "trump_voters_losing_pct": 32.2
   },
   {
    "mode": "random",
@@ -120,7 +144,10 @@
    "competitive_45_55": 110,
    "harris_seats_at_50_50": 214,
    "lean_r_15plus": 140,
-   "lean_d_15plus": 125
+   "lean_d_15plus": 125,
+   "losing_side_pct": 38.8,
+   "harris_voters_losing_pct": 42.8,
+   "trump_voters_losing_pct": 35.0
   }
  ]
 }

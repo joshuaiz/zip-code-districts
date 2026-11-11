@@ -193,7 +193,7 @@ python3 pipeline/06b_overlay_votes.py      # area-weighted precinct -> ZIP votes
 python3 pipeline/06c_outcomes.py           # -> data/outcomes/2024_{modes,states,districts}.csv, 2024.json
 ```
 `efficiency_gap_pct` > 0 favours Republicans; `median_minus_nation_pts` < 0 means the median district is redder
-than the nation. The NYT data is licensed for non-commercial use with credit, so only district-level results are
+than the nation; `losing_side_pct` is the share of voters whose district went to the other candidate. The NYT data is licensed for non-commercial use with credit, so only district-level results are
 committed; the raw and ZIP-level files stay in the git-ignored `data/raw/`.
 
 Sources: U.S. Census Bureau. 2020 Census DHC Table P1 by ZCTA; 2020 cartographic boundaries

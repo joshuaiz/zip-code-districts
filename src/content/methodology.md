@@ -269,6 +269,23 @@ Nationally, Harris won 49.15% of the two-party vote. A seat share matching that 
 
 **What the numbers show.** Every mode gives Harris fewer seats than her vote share would suggest, by 7 to 20 seats, and every mode's median district is redder than the nation. The enacted 2024 maps show a similar tilt. Most of the gap comes from a few states: under shortest splitline, Harris falls furthest short of a proportional share in Florida, Ohio, Texas, North Carolina, Indiana and Pennsylvania, and does better than proportional in California, New Jersey, Massachusetts, Connecticut and Washington. The modes differ by up to 13 seats from each other. The two county-keeping modes lean furthest toward Republicans, and shortest splitline produces the most competitive seats.
 
+<h3 id="losing-side">Voters represented by someone they voted against</h3>
+
+In any system of single-member districts, everyone who voted for a losing candidate is represented by someone they voted against. This number shows how much the map itself changes that.
+
+| Map | Voters on the losing side | Harris voters on the losing side | Trump voters on the losing side |
+|---|---|---|---|
+| Actual 2024 House races, enacted maps | 36.3% (53.7 million) | 37.8%* | 31.4%* |
+| Presidential vote, enacted maps | 37.6% | 43.0% | 32.3% |
+| Presidential vote, ZIP modes (range of all nine) | 38.6–39.1% | 42.8–46.0% | 31.9–35.0% |
+| Presidential vote, shortest splitline | 39.0% | 44.0% | 34.1% |
+
+\*For actual House races: Democratic and Republican House voters whose representative is from another party.
+
+About 4 in 10 voters end up represented by someone they voted against, whichever map is used. The ZIP maps raise that share by only 1–1.5 points over the enacted maps, about 2 million voters. That is the cost of having more competitive seats: when more races are close, more voters end up on the losing side of one. The map does change *who* is on the losing side. In every case, Democratic voters lose more often than Republican voters, because more of them live in lopsided city districts.
+
+The actual House figure is lower partly because 40 races had no Democrat-versus-Republican contest, so many voters there had no real choice to lose.
+
 **How to read it.** People who judge maps by process will see this as political geography at work: Democratic voters are concentrated in cities, so blind, compact districts waste more of their votes, and no one chose that result. People who judge maps by outcome will see a consistent tilt that a fair map should correct. This analysis doesn't settle that debate. It makes the trade-off visible, and both readings start from the same numbers. One election is also a narrow test. The result depends on where each party's voters live, which shifts over time.
 
 The per-district, per-state and per-mode results are in `data/outcomes/`, and the scripts are `pipeline/06a`–`06c`.
@@ -306,3 +323,4 @@ All nine modes pass.
 - *The New York Times*, "An Extremely Detailed Map of the 2024 Election," precinct results (non-commercial use with credit) ([github.com/nytimes/presidential-precinct-map-2024](https://github.com/nytimes/presidential-precinct-map-2024)).
 - Tony McGovern, 2024 county-level presidential results ([github.com/tonmcg/US_County_Level_Election_Results_08-24](https://github.com/tonmcg/US_County_Level_Election_Results_08-24)).
 - The Downballot, 2024 presidential results for all 435 House districts ([the-downballot.com](https://www.the-downballot.com/p/the-downballots-calculations-of-presidential)).
+- MIT Election Data and Science Lab, U.S. House 1976–2024 returns ([doi.org/10.7910/DVN/IG0UN2](https://doi.org/10.7910/DVN/IG0UN2)), and 2024 presidential results by congressional district compiled by Drew Savicki (via [jaytimm/PresElectionResults](https://github.com/jaytimm/PresElectionResults)).

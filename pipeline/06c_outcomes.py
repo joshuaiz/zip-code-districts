@@ -46,6 +46,10 @@ for m in order:
         "competitive_45_55": int(((g.share > 0.45) & (g.share < 0.55)).sum()),
         "harris_seats_at_50_50": seats_at(g.share.values, 0.5),
         "lean_r_15plus": int((g.share < 0.425).sum()), "lean_d_15plus": int((g.share > 0.575).sum()),
+        # voters whose district went to the other candidate ("represented by someone they voted against")
+        "losing_side_pct": round(100 * np.minimum(g.dem, g.rep).sum() / (g.dem + g.rep).sum(), 1),
+        "harris_voters_losing_pct": round(100 * g.dem[g.share < 0.5].sum() / g.dem.sum(), 1),
+        "trump_voters_losing_pct": round(100 * g.rep[g.share > 0.5].sum() / g.rep.sum(), 1),
     })
     for st, s in g.groupby("st"):
         sd, sr = s.dem.sum(), s.rep.sum()
