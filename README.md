@@ -14,21 +14,25 @@ Requires Node 22+. Astro's dev server runs detached; stop it with `yarn astro de
 `/districts` redirects to `/`.
 
 U.S. House districts built by aggregating adjacent ZIP Code Tabulation Areas (ZCTAs), with nine
-non-partisan districting modes. No voter, party, race or incumbent data is used anywhere.
+non-partisan districting modes, listed from most to least defensible as a neutral rule. No voter, party, race or incumbent data is used anywhere.
 
 ## Modes and results (2020 Census)
 
-| Group | Mode | Mean dev | Max dev | Within ±1% | Counties split | Cut edges |
-|---|---|---|---|---|---|---|
-| Start point | NW corner | 0.22% | 1.65% | 418 / 429 | 1,060 | 17,352 |
-| Start point | NE corner | 0.22% | 1.70% | 419 / 429 | 1,091 | 17,524 |
-| Start point | State center | 0.22% | 3.36% | 416 / 429 | 1,119 | 17,747 |
-| Start point | ZIP number | 0.20% | 1.80% | 424 / 429 | 1,146 | 18,005 |
-| Fixed rule | Shortest splitline | 0.24% | 1.65% | 413 / 429 | 1,014 | 16,975 |
-| Fixed rule | Counties first | 0.30% | 3.36% | 415 / 429 | 703 | 17,532 |
-| Pick by rule | Random draw | 0.26% | 2.00% | 414 / 429 | 1,071 | 17,202 |
-| Pick by rule | Most typical (of 100) | 0.27% | 2.12% | 417 / 429 | 1,022 | 16,034 |
-| Pick by rule | Best score | 0.30% | 1.65% | 411 / 429 | 944 | 15,094 |
+| Rank | Group | Mode | Mean dev | Max dev | Within ±1% | Counties split | Cut edges |
+|---|---|---|---|---|---|---|---|
+| 1 | Fixed rule | Shortest splitline | 0.24% | 1.65% | 413 / 429 | 1,014 | 16,975 |
+| 2 | Fixed rule | Splitline + counties | 0.41% | 2.71% | 387 / 429 | 644 | 15,792 |
+| 3 | Fixed rule | Counties first | 0.30% | 3.36% | 415 / 429 | 703 | 17,532 |
+| 4 | Start point | State center | 0.22% | 3.36% | 416 / 429 | 1,119 | 17,747 |
+| 5 | Start point | NW corner | 0.22% | 1.65% | 418 / 429 | 1,060 | 17,352 |
+| 6 | Start point | NE corner | 0.22% | 1.70% | 419 / 429 | 1,091 | 17,524 |
+| 7 | Start point | ZIP number | 0.20% | 1.80% | 424 / 429 | 1,146 | 18,005 |
+| 8 | Pick by rule | Best score | 0.38% | 2.00% | 395 / 429 | 722 | 14,459 |
+| 9 | Pick by rule | Random draw | 0.26% | 2.00% | 414 / 429 | 1,071 | 17,202 |
+
+Rank = fewest choices a person could tune (the order of `STRATEGY_INFO`, the map's button order and
+the `pickBest` tie-break). The reasoning is in `src/content/methodology.md` → "Ranking the modes";
+"The rules" there spells out the full recipe and why it is fixed in advance.
 
 Cut edges = adjacent ZIP pairs split between districts (lower = smoother, more compact borders).
 Every mode: correct seat count per state, every ZCTA assigned once, every district contiguous
@@ -36,16 +40,19 @@ Every mode: correct seat count per state, every ZCTA assigned once, every distri
 
 - **Shortest splitline**: recursive shortest straight cut at the A:B population ratio (A = ⌊k/2⌋),
   every whole-degree angle, ZIPs assigned by centroid side; ties → closest to north–south.
+- **Splitline + counties**: splitline whose units are counties. For each angle, counties are ordered by
+  population centre along the cut direction (ZIPs within a county by their own position), so every county
+  stays whole except the one where the A:B ratio is reached. Border length = neighbouring ZIP pairs
+  separated (it follows county lines). Finish uses the Counties first settings (county-line cuts at 15%,
+  μ = 3e-5, ±2% fallback).
 - **Counties first**: growth finishes a county before entering a new one; border term makes cutting
   along county lines 6–7× cheaper. If a state ends up beyond ±2%, it is rebalanced once at the
   normal border weight (this happens in New York, where each NYC borough is a county).
 - **Random draw**: random spanning-tree splits, seeded by `verifiableSeed(state, "random")` =
   FNV-1a of `"2020 Census apportionment population 331108434|<STATE>|random"`. One draw, no rerolls.
   For a real cycle, replace the seed with a public value published after the rules are fixed.
-- **Most typical**: 100 random tree-split maps per state; keep the medoid (fewest total disagreements
-  about which neighbouring ZIP pairs share a district); then the normal balancing.
 - **Best score** (`pickBest`): among the other 8 modes' maps for a state, keep maps within ±2%,
-  then fewest cut edges, then lowest mean deviation. Per-state winner is in `districts.json`
+  then fewest cut edges, then lowest mean deviation, then rank. Per-state winner is in `districts.json`
   → `stateStats.best[ST].winner`.
 
 ## Bundle layout
@@ -64,10 +71,11 @@ src/
   styles/map.css                the map's styles (global and unlayered, see below)
   styles/tokens.css             shared :root colour/font tokens + dark mode, loaded by Base
   styles/global.css             Tailwind v4 entry + typography plugin + font theme
-  content/methodology.md        methodology text; raw <h2 id>/<h3 id> anchors (#mode-nw … #mode-best)
+  content/methodology.md        methodology text; raw <h2 id>/<h3 id> anchors (#mode-splitline … #mode-random), #rules, #ranking
   pages/index.astro             Base + <ZipDistrictMap />
   pages/methodology.astro       renders methodology.md with Tailwind Typography (prose)
   lib/districter.js             the districting engine: dependency-free ES module, runs in Node or the browser
+  lib/themes.js                 the 11 map colour themes (5 fills each + ground, no-ZIP land, border, state, selection colours)
 data/
   zcta_graph.json               the ZCTA graph the engine runs on (pop, state, coordinates, neighbours) 4.8 MB
   assignments.json              ZCTA → district for each strategy
@@ -82,7 +90,7 @@ pipeline/                     rebuild everything from raw Census files
 and imports `maplibre-gl` (plus its CSS) and `topojson-client` from node_modules. It fetches data
 from `${BASE_URL}data/`, so it works under any route or `base`. Behaviour:
 - mode buttons are generated from `districts.json` → `strategies` (grouped); each recolors the map
-  and sets the URL hash (`/#nw` … `/#best` deep-link). "How this mode works →" links to
+  and sets the URL hash (`/#splitline` … `/#random` deep-link; no hash = top-ranked mode). "How this mode works →" links to
   `/methodology#mode-<id>`
 - per-ZIP district ids and colours for all modes come from `data/modes.json` and are attached to the
   ZIP features in the browser (the geometry files don't carry them)
@@ -90,6 +98,9 @@ from `${BASE_URL}data/`, so it works under any route or `base`. Behaviour:
 - the state dropdown fills the district table; clicking a row selects the district
 - full-resolution `data/states/XX.topo.json` files load on demand at zoom ≥ 7
 - the legend's collapsed state is remembered in localStorage
+- the theme picker (top right, next to zoom) recolours the map from `src/lib/themes.js`; the choice is remembered
+  in localStorage, and `?theme=<id>` in the URL overrides it. State lines come from the Census boundaries
+  (`land.topo.json`, borders between states only), so patches of land with no ZIP area aren't ringed
 
 `src/styles/map.css` is imported from the component's frontmatter, so it is **global**, not scoped:
 the script builds DOM at runtime (district labels, tooltip, district card, state table) that
@@ -150,6 +161,22 @@ node    pipeline/02_run.mjs data/zcta_graph.json data
 python3 pipeline/03_geometry.py data
 # then the mapshaper commands in pipeline/build_geometry.sh, then:
 node    pipeline/04_meta.mjs data/assignments.json public/data/districts.json
+node    pipeline/04b_tables.mjs                    # zip_to_district.csv, district_stats.csv
+python3 pipeline/05_verify.py data/zcta_graph.json data/assignments.json
+```
+
+**Map colours.** `03c_patch_topo.mjs` is also the colouring step: run it for every mode after a full rebuild
+(`node pipeline/03c_patch_topo.mjs splitline splitcounty county center nw ne zip random best`) to replace
+`03_geometry.py`'s greedy colours with the 5-colour scheme the themes expect (DSATUR + Kempe chains, balanced;
+`COLOURS=<k>` changes the count). Only districts whose outlines touch count as neighbours.
+
+**Adding or changing one mode without the raw files** (no geopandas/mapshaper needed):
+```
+cp data/assignments.json /tmp/prev.json
+node pipeline/02_run.mjs data/zcta_graph.json data --reuse /tmp/prev.json --rerun <mode>
+node pipeline/03c_patch_topo.mjs <mode> best      # merges district outlines from the ZIP layer already in public/data
+                                                  # and recolours: exactly 5 colours, touching districts differ
+node pipeline/04_meta.mjs data/assignments.json public/data/districts.json && node pipeline/04b_tables.mjs
 python3 pipeline/05_verify.py data/zcta_graph.json data/assignments.json
 ```
 

@@ -14,25 +14,26 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     </header>
 
     <section aria-labelledby="h-strat">
-      <h2 id="h-strat">How districts are built</h2>
-      <div class="seg" id="strategies" role="group" aria-label="Districting mode"></div>
-      <p class="desc"><span id="strat-desc"></span> <a id="strat-more" href={`${base}methodology#modes`}>How this mode works →</a></p>
+      <div class="sec-head"><h2 id="h-strat">Method</h2><span>ranked, most neutral first</span></div>
+      <div class="modes" id="strategies" role="radiogroup" aria-labelledby="h-strat"></div>
+      <button type="button" class="more" id="modes-more" aria-expanded="false" aria-controls="strategies"></button>
+      <p class="desc"><span id="strat-desc"></span> <a id="strat-more" href={`${base}methodology#modes`}>How it works →</a></p>
     </section>
 
     <section aria-labelledby="h-stats">
-      <h2 id="h-stats">Balance across 429 districts in multi-seat states</h2>
+      <h2 id="h-stats">Balance, 429 districts in multi-seat states</h2>
       <div class="stats">
-        <div class="stat"><b id="st-mean">–</b><span>mean deviation</span></div>
-        <div class="stat"><b id="st-max">–</b><span>largest deviation</span></div>
-        <div class="stat"><b id="st-w1">–</b><span>within ±1%</span></div>
+        <div class="stat"><b id="st-mean">–</b><span>avg. deviation</span></div>
+        <div class="stat"><b id="st-max">–</b><span>largest</span></div>
+        <div class="stat"><b id="st-w1">–</b><span id="st-w1-l">within ±1%</span></div>
         <div class="stat"><b id="st-cs">–</b><span>counties split</span></div>
       </div>
     </section>
 
-    <section aria-labelledby="h-find">
-      <h2 id="h-find">Find a ZIP code</h2>
+    <section>
       <form class="row" id="zipform">
-        <input type="search" id="zipq" inputmode="numeric" maxlength="5" placeholder="e.g. 60010" aria-label="ZIP code" autocomplete="off">
+        <label for="zipq" class="vh">ZIP code</label>
+        <input type="search" id="zipq" inputmode="numeric" maxlength="5" placeholder="Find a ZIP code" autocomplete="off">
         <button class="btn" type="submit" id="zipgo">Show</button>
       </form>
       <div class="hint" id="ziphint"></div>
@@ -42,7 +43,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
 
     <section aria-labelledby="h-state">
       <h2 id="h-state">Districts by state</h2>
-      <select id="statesel" aria-labelledby="h-state"></select>
+      <div class="selectwrap"><select id="statesel" aria-labelledby="h-state"></select></div>
       <div id="statetable" style="margin-top:8px"></div>
     </section>
 
@@ -51,7 +52,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
       <p><a href={`${base}methodology`}><b>Read the full methodology</b></a>: data, rules and a step-by-step explanation of every mode.</p>
       <p><b>Building blocks.</b> 33,585 ZIP Code Tabulation Areas (the Census Bureau's land-area version of ZIP codes) with 2020 Census population. A ZIP that straddles a state line goes to the state holding most of its area. ZIPs are whole units and never split.</p>
       <p><b>Seats and targets.</b> Each state keeps its 2020 apportionment. The national average is 761,169 people per seat, but districts cannot cross state lines, so the target is the state's population divided by its seats (Montana ≈ 542,000 per district, Delaware ≈ 990,000 for its single seat).</p>
-      <p><b>Modes.</b> <i>Start point</i> modes grow districts outward from an anchor. <i>Fixed rule</i> modes follow one mechanical rule with no settings. <i>Pick by rule</i> modes choose among many possible maps using a rule set before any map was drawn, so nobody can keep redrawing until they like the result.</p>
+      <p><b>Modes.</b> Listed from most to least defensible as a neutral rule: the fewer choices a person could tune, the higher the rank (<a href={`${base}methodology#ranking`}>why this order</a>). <i>Fixed rule</i> modes follow one mechanical rule. <i>Start point</i> modes grow districts outward from an anchor. <i>Pick by rule</i> modes choose among many possible maps using a rule set before any map was drawn, so nobody can keep redrawing until they like the result.</p>
       <p><b>Same finish for every mode.</b> After a mode draws its first version, a balancing pass trades border ZIPs between neighboring districts to even out population, keeping every district in one piece and its borders smooth.</p>
       <p><b>Random seed.</b> The random modes take their seed from a number published before any map existed: <span id="pubseed"></span>. Anyone can rerun the code and get identical maps.</p>
       <p><b>Counties split</b> counts counties whose ZIP areas fall in more than one district. Each ZIP area is assigned to the county holding most of its land.</p>
@@ -67,13 +68,16 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
       <button type="button" data-view="ak" id="v-ak">Alaska</button>
       <button type="button" data-view="hi" id="v-hi">Hawaii</button>
     </div>
+    <div class="themepick" id="themepick">
+      <button type="button" class="themebtn" id="themebtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="themelist"><span class="sws" id="themesw" aria-hidden="true"></span><span id="themename">Theme</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+      <div class="themelist" id="themelist" role="listbox" aria-label="Map theme" tabindex="-1" hidden></div>
+    </div>
     <div class="legend" id="legend">
       <button type="button" class="legend-toggle" id="legend-toggle" aria-expanded="true">Legend</button>
-      <div class="li"><span class="k" style="background:linear-gradient(90deg,#4e79a7 0 33%,#f28e2b 33% 66%,#59a14f 66%);opacity:.8"></span><span>District<small>Colors only tell neighbors apart.</small></span></div>
-      <div class="li"><span class="k" style="background:var(--land)"></span><span>No ZIP code area<small>Unpopulated land such as national forests, deserts, parks and military ranges. Zero residents, so it belongs to no district.</small></span></div>
-      <div class="li"><span class="k" style="background:none;border-top:3px solid #0b111a;height:0;margin-top:7px"></span><span>State line</span></div>
-      <div class="li"><span class="k" style="background:none;border-top:1.5px solid #1b2433;height:0;margin-top:7px"></span><span>District border</span></div>
-      <div class="li"><span class="k" style="background:#4e79a7;opacity:.8;position:relative;overflow:hidden"><i style="position:absolute;left:10px;top:0;bottom:0;border-left:1px solid #fff"></i></span><span>ZIP code boundary<small>Shown when zoomed in.</small></span></div>
+      <div class="li"><span class="k" id="lg-dist" style="opacity:.9"></span><span>District<small>Colors only tell neighbors apart.</small></span></div>
+      <div class="li"><span class="k" id="lg-land"></span><span>No ZIP code area<small>Unpopulated land such as national forests, deserts and parks. Zero residents, so it belongs to no district.</small></span></div>
+      <div class="li"><span class="k line" id="lg-state"></span><span>State line</span></div>
+      <div class="li"><span class="k line thin" id="lg-border"></span><span>District border</span></div>
     </div>
     <div class="tip" id="tip"></div>
     <div class="loading" id="loading"><div>Loading 33,585 ZIP code areas…<div class="bar"><i id="loadbar"></i></div></div></div>
@@ -85,20 +89,14 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import * as topojson from "topojson-client";
+  import { THEMES, DEFAULT_THEME, themeById } from "../lib/themes.js";
 
-  const PALETTE = ["#4e79a7", "#f28e2b", "#59a14f", "#e15759", "#76b7b2", "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#86bcb6"];
-  const SQ = '<rect x="1.5" y="1.5" width="13" height="13" rx="2" fill="none" stroke="currentColor"/>';
-  const ICONS = {
-    nw: SQ + '<circle cx="4.5" cy="4.5" r="2.2" fill="currentColor"/>',
-    ne: SQ + '<circle cx="11.5" cy="4.5" r="2.2" fill="currentColor"/>',
-    center: SQ + '<circle cx="8" cy="8" r="2.2" fill="currentColor"/>',
-    zip: SQ + '<text x="8" y="11.5" text-anchor="middle" font-size="9" font-family="monospace" fill="currentColor">01</text>',
-    splitline: SQ + '<path d="M4 14 L12 2" stroke="currentColor" stroke-width="1.6"/>',
-    county: SQ + '<path d="M1.5 8 H14.5 M8 1.5 V14.5" stroke="currentColor"/>',
-    best: SQ + '<path d="M4.5 8.3 L7 10.8 L11.5 5.5" fill="none" stroke="currentColor" stroke-width="1.6"/>',
-    random: SQ + '<circle cx="5" cy="5" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="11" cy="11" r="1.3" fill="currentColor"/>',
-    central: SQ + '<circle cx="8" cy="8" r="4" fill="none" stroke="currentColor"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/>',
-  };
+  // map theme (colours only): remembered per browser; "?theme=<id>" in the URL overrides it
+  let TH = themeById(DEFAULT_THEME);
+  try { TH = themeById(new URLSearchParams(location.search).get("theme") || localStorage.getItem("zd-theme") || DEFAULT_THEME); } catch (e) {}
+  const pal = (i) => TH.fills[i] ?? "#999999";
+  const widths = (stops, k) => ["interpolate", ["linear"], ["zoom"], ...stops.flatMap(([z, w]) => [z, +(w * k).toFixed(2)])];
+  const DIST_W = [[3, 0.4], [7, 1.2], [11, 2.4]], STATE_W = [[3, 1], [7, 2.4], [11, 3.6]];
   const VIEWS = { l48: [[-125, 24.3], [-66.8, 49.5]], ak: [[-170, 51], [-129.5, 71.5]], hi: [[-160.5, 18.8], [-154.6, 22.4]] };
   const NAMES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
   // data folder relative to the site base, so fetches work from any route
@@ -109,7 +107,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
   const devClass = (d) => (Math.abs(d) <= 1 ? "good" : Math.abs(d) <= 2 ? "warn" : "bad");
   const devText = (d) => (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d).toFixed(2) + "%";
 
-  let S = location.hash.slice(1) || "nw";   // validated against the mode list once data loads
+  let S = location.hash.slice(1);   // validated against the mode list once data loads; default = top-ranked mode
   let attachModes, meta, topo, zctaFC, distFC = {}, lblFC = {}, zipIndex = new Map(), distBBox = {}, distZips = {};
   let selected = null, pinnedZip = null, markers = [], stateBBox = {}, selFilter = ["==", ["get", "zcta"], "__none__"], zipFilter = selFilter;
   const EMPTY = { type: "FeatureCollection", features: [] }, NONE = ["==", ["get", "zcta"], "__none__"];
@@ -118,7 +116,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const map = new maplibregl.Map({
     container: "map",
-    style: { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": css("--sea") } }] },
+    style: { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": TH.ground } }] },
     bounds: VIEWS.l48, fitBoundsOptions: { padding: 20 }, maxZoom: 13.5, minZoom: 2, dragRotate: false, pitchWithRotate: false,
     attributionControl: { compact: true, customAttribution: "Boundaries & population: U.S. Census Bureau (2020)" },
   });
@@ -149,7 +147,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
       fetchWithProgress(DATA + "zipdistricts.topo.json", (p) => ($("loadbar").style.width = Math.round(p * 100) + "%")),
     ]);
     meta = m; topo = t;
-    if (!meta.strategies[S]) S = "nw";
+    if (!meta.strategies[S]) S = Object.keys(meta.strategies)[0];
     // attach every mode's district id + colour to each ZIP feature (kept out of the geometry files)
     const zi = new Map(modes.zctas.map((z, i) => [z, i])), MODES = Object.keys(modes.modes);
     attachModes = (f, st) => {
@@ -170,18 +168,20 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     stateBBox = Object.fromEntries(states.features.map((f) => [f.properties.st, bboxOf(f.geometry)]));
     map.addSource("zctas", { type: "geojson", data: zctaFC, tolerance: 0.25 });
     map.addSource("dist", { type: "geojson", data: distFC[S], tolerance: 0.25 });
-    map.addSource("states", { type: "geojson", data: states, tolerance: 0.25 });
+    // state lines: only the borders BETWEEN states, from the Census boundaries (the ZIP-derived state shapes have
+    // holes wherever there is no ZIP area, which would ring every patch of empty land)
+    map.addSource("states", { type: "geojson", data: topojson.mesh(landTopo, landTopo.objects.land, (a, b) => a !== b), tolerance: 0.25 });
     // real Census state boundaries: covers land with no ZIP area (the ZIP-derived outlines have holes there)
     map.addSource("land", { type: "geojson", data: topojson.feature(landTopo, landTopo.objects.land), tolerance: 0.2 });
     map.addSource("zd", { type: "geojson", data: EMPTY, tolerance: 0.15 });
     map.addSource("dd", { type: "geojson", data: EMPTY, tolerance: 0.15 });
     const fillPaint = () => ({ "fill-color": fillExpr(), "fill-opacity": 0.78, "fill-antialias": false });
-    const zipLinePaint = { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 6.5, 0.2, 11, 0.9], "line-opacity": ["interpolate", ["linear"], ["zoom"], 6.5, 0, 8, 0.55] };
-    const distLinePaint = { "line-color": "#1b2433", "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.35, 7, 1.1, 11, 2.2], "line-opacity": 0.85 };
+    const zipLinePaint = { "line-color": TH.border, "line-width": ["interpolate", ["linear"], ["zoom"], 6.5, 0.2, 11, 0.9], "line-opacity": ["interpolate", ["linear"], ["zoom"], 6.5, 0, 8, 0.55] };
+    const distLinePaint = { "line-color": TH.border, "line-width": widths(DIST_W, TH.bw), "line-opacity": 1 };
     const selFill = { "fill-color": "#ffffff", "fill-opacity": 0.22 };
-    const selLine = { "line-color": "#0b111a", "line-width": ["interpolate", ["linear"], ["zoom"], 3, 2, 10, 4.5] };
+    const selLine = { "line-color": TH.sel, "line-width": ["interpolate", ["linear"], ["zoom"], 3, 2, 10, 4.5] };
     // coarse national layers (always loaded) …
-    map.addLayer({ id: "land", type: "fill", source: "land", paint: { "fill-color": css("--land") } });
+    map.addLayer({ id: "land", type: "fill", source: "land", paint: { "fill-color": TH.land } });
     map.addLayer({ id: "zcta-fill", type: "fill", source: "zctas", paint: fillPaint() });
     map.addLayer({ id: "zcta-line", type: "line", source: "zctas", minzoom: 6.5, paint: zipLinePaint });
     // … and full-resolution layers for states in view once zoomed in
@@ -191,13 +191,15 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     map.addLayer({ id: "dd-sel-fill", type: "fill", source: "dd", filter: NONE, paint: selFill });
     map.addLayer({ id: "dist-line", type: "line", source: "dist", paint: distLinePaint });
     map.addLayer({ id: "dd-line", type: "line", source: "dd", filter: ["==", ["get", "s"], S], paint: distLinePaint, layout: { visibility: "none" } });
-    map.addLayer({ id: "state-line", type: "line", source: "states", paint: { "line-color": "#0b111a", "line-width": ["interpolate", ["linear"], ["zoom"], 3, 1, 7, 2.4, 11, 3.6] } });
+    map.addLayer({ id: "state-line", type: "line", source: "states", paint: { "line-color": TH.state, "line-width": widths(STATE_W, TH.sw) } });
     map.addLayer({ id: "sel-line", type: "line", source: "dist", filter: NONE, paint: selLine });
     map.addLayer({ id: "dd-sel-line", type: "line", source: "dd", filter: NONE, paint: selLine });
-    map.addLayer({ id: "zip-line", type: "line", source: "zctas", filter: NONE, paint: { "line-color": "#0b111a", "line-width": 2.2, "line-dasharray": [2, 1] } });
-    map.addLayer({ id: "zd-zip-line", type: "line", source: "zd", filter: NONE, paint: { "line-color": "#0b111a", "line-width": 2.2, "line-dasharray": [2, 1] } });
+    map.addLayer({ id: "zip-line", type: "line", source: "zctas", filter: NONE, paint: { "line-color": TH.sel, "line-width": 2.2, "line-dasharray": [2, 1] } });
+    map.addLayer({ id: "zd-zip-line", type: "line", source: "zd", filter: NONE, paint: { "line-color": TH.sel, "line-width": 2.2, "line-dasharray": [2, 1] } });
     $("loading").remove();
     buildStrategies();
+    buildThemePicker();
+    applyTheme(TH, true);
     $("pubseed").textContent = "“" + meta.publicSeed + "”";
     buildStateSelect();
     setStrategy(S, true);
@@ -205,29 +207,80 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
   }
 
   function fillExpr() {
-    const e = ["match", ["get", "c_" + S]]; PALETTE.forEach((c, i) => e.push(i, c)); e.push("#999999"); return e;
+    const e = ["match", ["get", "c_" + S]]; TH.fills.forEach((c, i) => e.push(i, c)); e.push("#999999"); return e;
   }
 
+  // ranked method list (engine order = most to least neutral); the top TOP show, the rest behind "Show more"
+  const TOP = 4;
   function buildStrategies() {
-    const el = $("strategies"); let html = "", group = "";
-    for (const [id, info] of Object.entries(meta.strategies)) {
-      if (info.group !== group) { group = info.group; html += `<div class="grp">${group}</div>`; }
-      html += `<button type="button" data-s="${id}" id="s-${id}"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">${ICONS[id] || SQ}</svg>${info.label}</button>`;
-    }
-    el.innerHTML = html;
+    const el = $("strategies"), ids = Object.keys(meta.strategies);
+    el.innerHTML = ids.map((id, i) => { const info = meta.strategies[id];
+      return `<button type="button" role="radio" aria-checked="false" class="mode${i >= TOP ? " extra" : ""}" data-s="${id}" id="s-${id}" tabindex="-1"><span class="rank">${i + 1}</span><span class="dot" aria-hidden="true"></span><span class="mode-name">${info.label}</span><span class="tag">${info.group}</span></button>`; }).join("");
     el.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => setStrategy(b.dataset.s)));
+    el.addEventListener("keydown", (e) => { // radio-group arrow keys
+      const k = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key]; if (!k) return;
+      e.preventDefault(); const next = ids[(ids.indexOf(S) + k + ids.length) % ids.length]; setStrategy(next); $("s-" + next).focus();
+    });
+    const more = $("modes-more"), extra = ids.length - TOP;
+    const setOpen = (open) => { el.classList.toggle("open", open); more.setAttribute("aria-expanded", String(open)); more.textContent = open ? "Show fewer methods" : `Show ${extra} more methods`; };
+    setOpen(false);
+    more.addEventListener("click", () => setOpen(!el.classList.contains("open")));
+    el._setOpen = setOpen;
+  }
+
+  // ---- map themes ----
+  function buildThemePicker() {
+    const list = $("themelist"), btn = $("themebtn"), groups = [...new Set(THEMES.map((t) => t.group))];
+    list.innerHTML = groups.map((g) => `<div class="tgrp" role="presentation">${g}</div>` + THEMES.filter((t) => t.group === g).map((t) =>
+      `<button type="button" role="option" aria-selected="false" data-t="${t.id}" tabindex="-1"><span class="sws" aria-hidden="true">${t.fills.map((c) => `<i style="background:${c}"></i>`).join("")}</span><span class="tn"><b>${t.name}</b><small>${t.desc}</small></span><svg class="tick" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>`).join("")).join("");
+    const opts = () => [...list.querySelectorAll("button")];
+    const open = (o) => { list.hidden = !o; btn.setAttribute("aria-expanded", String(o)); if (o) (list.querySelector('[aria-selected="true"]') || opts()[0]).focus(); };
+    btn.addEventListener("click", () => open(list.hidden));
+    list.addEventListener("click", (e) => { const b = e.target.closest("button[data-t]"); if (!b) return; applyTheme(themeById(b.dataset.t)); open(false); btn.focus(); });
+    list.addEventListener("keydown", (e) => {
+      const o = opts(), i = o.indexOf(document.activeElement);
+      if (e.key === "Escape") { open(false); btn.focus(); }
+      else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); o[(i + (e.key === "ArrowDown" ? 1 : -1) + o.length) % o.length].focus(); }
+    });
+    document.addEventListener("click", (e) => { if (!list.hidden && !$("themepick").contains(e.target)) open(false); });
+  }
+
+  function applyTheme(t, initial) {
+    TH = t;
+    try { if (!initial) localStorage.setItem("zd-theme", t.id); } catch (e) {}
+    const mapEl = $("map"); mapEl.dataset.mapTheme = t.id; mapEl.classList.toggle("dark-map", t.dark); mapEl.style.setProperty("--map-ground", t.ground);
+    map.setPaintProperty("bg", "background-color", t.ground);
+    map.setPaintProperty("bg", "background-opacity", t.stars ? 0 : 1); // Lunar: the CSS starfield shows through
+    map.setPaintProperty("land", "fill-color", t.land);
+    for (const L of ["zcta-fill", "zd-fill"]) map.setPaintProperty(L, "fill-color", fillExpr());
+    for (const L of ["zcta-line", "zd-line"]) map.setPaintProperty(L, "line-color", t.border);
+    for (const L of ["dist-line", "dd-line"]) { map.setPaintProperty(L, "line-color", t.border); map.setPaintProperty(L, "line-width", widths(DIST_W, t.bw)); }
+    map.setPaintProperty("state-line", "line-color", t.state); map.setPaintProperty("state-line", "line-width", widths(STATE_W, t.sw));
+    for (const L of ["sel-line", "dd-sel-line", "zip-line", "zd-zip-line"]) map.setPaintProperty(L, "line-color", t.sel);
+    for (const L of ["sel-fill", "dd-sel-fill"]) map.setPaintProperty(L, "fill-opacity", t.dark ? 0.16 : 0.3);
+    $("themename").textContent = t.name; $("themebtn").setAttribute("aria-label", "Map theme: " + t.name);
+    $("themesw").innerHTML = t.fills.slice(0, 3).map((c) => `<i style="background:${c}"></i>`).join("");
+    $("themelist").querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.t === t.id)));
+    const f = t.fills;
+    $("lg-dist").style.background = `linear-gradient(90deg, ${f[0]} 0 20%, ${f[1]} 20% 40%, ${f[2]} 40% 60%, ${f[3]} 60% 80%, ${f[4]} 80%)`;
+    $("lg-land").style.background = t.land;
+    $("lg-state").style.background = `linear-gradient(180deg, ${t.ground} 0 40%, ${t.state} 40% 60%, ${t.ground} 60%)`;
+    $("lg-border").style.background = `linear-gradient(90deg, ${f[0]} 0 44%, ${t.border} 44% 56%, ${f[1]} 56%)`;
+    if (!initial) { renderCard(); renderStateTable(); }
   }
 
   function setStrategy(s, initial) {
     S = s;
     if (!initial || location.hash.slice(1) !== s) history.replaceState(null, "", "#" + s);
-    document.querySelectorAll("#strategies button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.s === s)));
-    $("strat-desc").textContent = meta.strategies[s].desc;
+    document.querySelectorAll("#strategies button").forEach((b) => { const on = b.dataset.s === s; b.setAttribute("aria-checked", String(on)); b.tabIndex = on ? 0 : -1; });
+    if (Object.keys(meta.strategies).indexOf(s) >= TOP) $("strategies")._setOpen(true);
+    const grp = document.createElement("b"); grp.textContent = meta.strategies[s].group + ". ";
+    $("strat-desc").replaceChildren(grp, meta.strategies[s].desc);
     $("strat-more").href = BASE + "methodology#mode-" + s;
     const sum = meta.results[s].summary;
     $("st-mean").textContent = sum.meanAbsDevPct.toFixed(2) + "%";
     $("st-max").textContent = sum.maxAbsDevPct.toFixed(1) + "%";
-    $("st-w1").textContent = sum.within1pct + "/" + sum.multiSeatDistricts;
+    $("st-w1").textContent = sum.within1pct; $("st-w1-l").textContent = `of ${sum.multiSeatDistricts} within ±1%`;
     $("st-cs").textContent = sum.countySplits.toLocaleString("en-US");
     map.setPaintProperty("zcta-fill", "fill-color", fillExpr());
     map.setPaintProperty("zd-fill", "fill-color", fillExpr());
@@ -260,7 +313,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     const [pop, dev, nz] = meta.results[S].districts[selected];
     const st = selected.split("-")[0];
     const f = distFC[S].features.find((x) => x.properties["d_" + S] === selected);
-    const color = PALETTE[f ? f.properties["c_" + S] : 0];
+    const color = pal(f ? f.properties["c_" + S] : 0);
     const zips = (distZips[S][selected] || []).slice().sort();
     el.innerHTML = `<div class="card">
       <div class="title"><b><span class="sw" style="background:${color}"></span>${selected}</b><span class="pill ${devClass(dev)}">${devText(dev)} vs ideal</span></div>
@@ -294,7 +347,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     const colorOf = {}; for (const f of distFC[S].features) colorOf[f.properties["d_" + S]] = f.properties["c_" + S];
     for (let i = 1; i <= n; i++) {
       const id = `${st}-${i}`; const [pop, dev, nz] = meta.results[S].districts[id];
-      rows.push(`<tr data-id="${id}" tabindex="0" class="${id === selected ? "sel" : ""}"><td><span class="sw" style="background:${PALETTE[colorOf[id]]}"></span>${i}</td><td class="num">${fmt(pop)}</td><td class="num"><span class="pill ${devClass(dev)}">${devText(dev)}</span></td><td class="num">${nz}</td></tr>`);
+      rows.push(`<tr data-id="${id}" tabindex="0" class="${id === selected ? "sel" : ""}"><td><span class="sw" style="background:${pal(colorOf[id])}"></span>${i}</td><td class="num">${fmt(pop)}</td><td class="num"><span class="pill ${devClass(dev)}">${devText(dev)}</span></td><td class="num">${nz}</td></tr>`);
     }
     $("statetable").innerHTML = `<table><thead><tr><th>District</th><th class="num">Population</th><th class="num">vs ideal</th><th class="num">ZIPs</th></tr></thead><tbody>${rows.join("")}</tbody></table>
       <div class="hint">Ideal for ${NAMES[st]}: ${fmt(meta.ideal[st])} people per district · ${meta.stateStats[S][st].countySplits} counties split${S === "best" && meta.seats[st] > 1 ? ` · winning map: <b>${meta.strategies[meta.stateStats.best[st].winner].label}</b>` : ""}</div>`;

@@ -3,8 +3,8 @@
  *
  * Builds `k` contiguous districts inside one state by aggregating whole ZCTAs. Every mode has the
  * same three stages; only Stage 1 differs:
- *   Stage 1 — initial plan (the mode): seeded growth from an anchor, shortest splitline, county-first
- *             growth, or random spanning-tree splits (single verifiable draw / most typical of many).
+ *   Stage 1 — initial plan (the mode): seeded growth from an anchor, shortest splitline (plain or by
+ *             county), county-first growth, or random spanning-tree splits (a single verifiable draw).
  *   Stage 2 — balancing: move border ZCTAs between neighbouring districts whenever that lowers the
  *             squared population deviation and keeps both districts contiguous.
  *   Stage 3 — annealing: deterministic simulated annealing on Σ(deviation²) + μ·(weighted cut edges).
@@ -14,17 +14,17 @@
  * Works the same in Node (build-time) and the browser (Astro component or Web Worker).
  */
 
-/** Mode metadata (also drives the UI). */
+/** Mode metadata (also drives the UI). Listed from most to least defensible as a neutral rule (see methodology § Ranking). */
 export const STRATEGY_INFO = {
+  splitline: { label: "Shortest splitline", group: "Fixed rule", desc: "Cut the state with the shortest straight line that divides its population in the right ratio (e.g. 9 seats → 4:5), then cut each half the same way until every piece is one district. No settings, so only one possible map." },
+  splitcounty: { label: "Splitline + counties", group: "Fixed rule", desc: "Shortest splitline, but the pieces being cut are whole counties: at each cut, counties go to the side their population center falls on, and only the one county where the population ratio is reached is divided, along the straight line. Borders then settle on county lines where they can." },
+  county: { label: "Counties first", group: "Fixed rule", desc: "Like Iowa's nonpartisan process: districts take whole counties wherever population allows and split a county only when they must. Growth starts in the northwest; borders prefer county lines." },
+  center: { label: "State center", group: "Start point", desc: "Each state fills outward from the middle of its map extent. District 1 surrounds the central ZIP; later districts form around it." },
   nw: { label: "NW corner", group: "Start point", desc: "Each state fills from its northwest corner. District 1 grows from the ZIP nearest that corner; each new district starts at the unassigned ZIP closest to it." },
   ne: { label: "NE corner", group: "Start point", desc: "Each state fills from its northeast corner. District 1 grows from the ZIP nearest that corner; each new district starts at the unassigned ZIP closest to it." },
-  center: { label: "State center", group: "Start point", desc: "Each state fills outward from the middle of its map extent. District 1 surrounds the central ZIP; later districts form around it." },
   zip: { label: "ZIP number", group: "Start point", desc: "Each state starts at its lowest-numbered ZIP, and a growing district always adds the neighboring ZIP with the lowest number. Postal numbering follows mail-sorting regions, so districts follow them too." },
-  splitline: { label: "Shortest splitline", group: "Fixed rule", desc: "Cut the state with the shortest straight line that divides its population in the right ratio (e.g. 9 seats → 4:5), then cut each half the same way until every piece is one district. No settings, so only one possible map." },
-  county: { label: "Counties first", group: "Fixed rule", desc: "Like Iowa's nonpartisan process: districts take whole counties wherever population allows and split a county only when they must. Growth starts in the northwest; borders prefer county lines." },
   best: { label: "Best score", group: "Pick by rule", desc: "For each state, take every other mode's map and keep the one with the smoothest borders (fewest split neighbor links), among maps within ±2% of ideal. The rule was fixed before any map was drawn." },
   random: { label: "Random draw", group: "Pick by rule", desc: "One random map per state, built by cutting random spanning trees. The random seed comes from a public number published before the maps (the 2020 apportionment total), so anyone can rerun it and get the same map. No rerolls." },
-  central: { label: "Most typical", group: "Pick by rule", desc: "Draw 100 random maps per state, then keep the one most like all the others (fewest disagreements on which neighbors share a district). Randomness explores, a fixed rule chooses." },
 };
 export const STRATEGIES = Object.fromEntries(Object.entries(STRATEGY_INFO).map(([k, v]) => [k, v.label]));
 
@@ -66,10 +66,10 @@ export function pickBest(candidates) {
  * @param {Array<{id:string,pop:number,x:number,y:number,nb:string[]}>} zctas  ZCTAs of ONE state
  *        (x/y in a projected metric CRS, y increasing northward; nb = neighbour ids in the same state)
  * @param {number} k  number of districts (seats)
- * @param {"nw"|"ne"|"center"|"zip"|"splitline"|"county"|"random"|"central"} strategy
- * @param {{maxPasses?:number, anneal?:boolean, annealIters?:number, seed?:number, ensemble?:number}} [opts]
- *        seed: annealing seed, and the random-tree seed for "random"/"central" (use verifiableSeed()).
- *        ZCTAs may carry `co` (county id) — required for "county", used for the county-split statistic.
+ * @param {"splitline"|"splitcounty"|"county"|"center"|"nw"|"ne"|"zip"|"random"} strategy
+ * @param {{maxPasses?:number, anneal?:boolean, annealIters?:number, seed?:number}} [opts]
+ *        seed: annealing seed, and the random-tree seed for "random" (use verifiableSeed()).
+ *        ZCTAs may carry `co` (county id) — required for "county"/"splitcounty", used for the county-split statistic.
  * @returns {{assignment: Record<string, number>, districts: Array<{n:number,pop:number,zctas:number}>, ideal:number, cutEdges:number, countySplits:number}}
  */
 export function districtState(zctas, k, strategy, opts = {}) {
@@ -81,8 +81,9 @@ export function districtState(zctas, k, strategy, opts = {}) {
   const zipNum = Int32Array.from(zctas, (z) => parseInt(z.id, 10));
   const adj = zctas.map((z) => z.nb.map((id) => idx.get(id)).filter((j) => j !== undefined));
   const co = zctas.map((z) => z.co ?? null);
-  // edge weights for the border-smoothness term: in county mode, cutting along a county line is cheap
-  const adjW = adj.map((list, i) => list.map((j) => (strategy === "county" && co[i] !== co[j] ? 0.15 : 1)));
+  // county-aware modes: in the border-smoothness term, cutting along a county line is cheap
+  const countyAware = strategy === "county" || strategy === "splitcounty";
+  const adjW = adj.map((list, i) => list.map((j) => (countyAware && co[i] !== co[j] ? 0.15 : 1)));
   const total = pop.reduce((a, b) => a + b, 0);
   const T = total / k;
   const D = new Int32Array(N).fill(-1);
@@ -117,9 +118,8 @@ export function districtState(zctas, k, strategy, opts = {}) {
   }
 
   // ---------- Stage 1: initial plan ----------
-  if (strategy === "splitline") splitlinePartition();
+  if (strategy === "splitline" || strategy === "splitcounty") splitlinePartition(strategy === "splitcounty");
   else if (strategy === "random") treePartition(makeRng(opts.seed ?? 1));
-  else if (strategy === "central") centralPartition(makeRng(opts.seed ?? 1), opts.ensemble ?? 100);
   else {
     for (let d = 0; d < k; d++) {
       const seed = nextSeed();
@@ -143,10 +143,10 @@ export function districtState(zctas, k, strategy, opts = {}) {
   // ---------- Stage 3: annealing (population equality + compact borders) ----------
   if (opts.anneal !== false) {
     const iters = opts.annealIters ?? Math.max(20000, 600 * N);
-    anneal(iters, opts.seed ?? 12345, strategy === "county" ? 3e-5 : 4e-6);
-    // county mode trades a little balance for whole counties; if any district ends up beyond ±2%,
+    anneal(iters, opts.seed ?? 12345, countyAware ? 3e-5 : 4e-6);
+    // county-aware modes trade a little balance for whole counties; if any district ends up beyond ±2%,
     // rebalance that state once at the normal border weight
-    if (strategy === "county" && maxDev() > 0.02) anneal(iters, (opts.seed ?? 12345) + 1, 4e-6);
+    if (countyAware && maxDev() > 0.02) anneal(iters, (opts.seed ?? 12345) + 1, 4e-6);
   }
   
   return finish();
@@ -363,9 +363,17 @@ export function districtState(zctas, k, strategy, opts = {}) {
    * (A = ⌊kk/2⌋) with the shortest straight cut, testing every whole-degree angle. ZIPs are whole
    * units, so each goes to the side its centroid falls on. Cut length is measured across the populated
    * ZIPs nearest the cut (empty land between ZIP areas isn't counted). Ties → closest to north–south.
+   *
+   * byCounty ("Splitline + counties"): the units being cut are counties. For each angle, counties are
+   * ordered by their population center along the cut direction (ZIPs inside a county by their own
+   * position), so the cut keeps every county whole except the one where the A:B population ratio is
+   * reached, which is divided along the straight line. The resulting border follows county lines, so its
+   * length is measured as the number of neighbouring ZIP pairs it separates. Ties → closest to north–south.
    */
-  function splitlinePartition() {
+  function splitlinePartition(byCounty = false) {
     let next = 0;
+    const grp = zctas.map((z, i) => co[i] ?? "zip:" + z.id); // a ZIP with no county is its own unit
+    const side = new Uint8Array(N);
     const rec = (nodes, kk) => {
       if (kk === 1) { for (const i of nodes) D[i] = next; next++; return; }
       const A = Math.floor(kk / 2), B = kk - A;
@@ -375,17 +383,38 @@ export function districtState(zctas, k, strategy, opts = {}) {
       let best = null;
       for (let deg = 0; deg < 180; deg++) {
         const th = (deg * Math.PI) / 180, ux = Math.cos(th), uy = Math.sin(th), nx = -uy, ny = ux;
-        const order = nodes.map((i) => [nx * X[i] + ny * Y[i], i]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        let order;
+        if (!byCounty) order = nodes.map((i) => [nx * X[i] + ny * Y[i], i]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        else {
+          const gs = new Map(); // county → [Σ pos·pop, Σ pop, Σ pos, count]
+          for (const i of nodes) {
+            const t = nx * X[i] + ny * Y[i]; let a = gs.get(grp[i]);
+            if (!a) gs.set(grp[i], (a = [0, 0, 0, 0]));
+            a[0] += t * pop[i]; a[1] += pop[i]; a[2] += t; a[3]++;
+          }
+          const gpos = new Map(); for (const [g, a] of gs) gpos.set(g, a[1] > 0 ? a[0] / a[1] : a[2] / a[3]);
+          order = nodes.map((i) => [nx * X[i] + ny * Y[i], i, gpos.get(grp[i])]).sort((a, b) =>
+            a[2] - b[2] || (grp[a[1]] < grp[b[1]] ? -1 : grp[a[1]] > grp[b[1]] ? 1 : 0) || a[0] - b[0] || a[1] - b[1]);
+        }
         let cum = 0, cutIdx = 0, bestDiff = Infinity;
         for (let q = 0; q < order.length - 1; q++) { cum += pop[order[q][1]]; const df = Math.abs(cum - target); if (df < bestDiff) { bestDiff = df; cutIdx = q; } }
-        const c = (order[cutIdx][0] + order[cutIdx + 1][0]) / 2;
-        let lo = cutIdx, hi = cutIdx + 1, tmin = Infinity, tmax = -Infinity;
-        for (let n = 0; n < m && (lo >= 0 || hi < order.length); n++) {
-          const dl = lo >= 0 ? c - order[lo][0] : Infinity, dh = hi < order.length ? order[hi][0] - c : Infinity;
-          const i = dl <= dh ? order[lo--][1] : order[hi++][1];
-          const t = ux * X[i] + uy * Y[i]; if (t < tmin) tmin = t; if (t > tmax) tmax = t;
+        let len;
+        if (!byCounty) {
+          const c = (order[cutIdx][0] + order[cutIdx + 1][0]) / 2;
+          let lo = cutIdx, hi = cutIdx + 1, tmin = Infinity, tmax = -Infinity;
+          for (let n = 0; n < m && (lo >= 0 || hi < order.length); n++) {
+            const dl = lo >= 0 ? c - order[lo][0] : Infinity, dh = hi < order.length ? order[hi][0] - c : Infinity;
+            const i = dl <= dh ? order[lo--][1] : order[hi++][1];
+            const t = ux * X[i] + uy * Y[i]; if (t < tmin) tmin = t; if (t > tmax) tmax = t;
+          }
+          len = tmax - tmin;
+        } else {
+          for (let q = 0; q < order.length; q++) side[order[q][1]] = q <= cutIdx ? 1 : 2;
+          len = 0;
+          for (const i of nodes) for (const j of adj[i]) if (j > i && side[j] && side[j] !== side[i]) len++;
+          for (const i of nodes) side[i] = 0;
         }
-        const len = tmax - tmin, ns = Math.abs(deg - 90);
+        const ns = Math.abs(deg - 90);
         if (!best || len < best.len - 1e-6 || (Math.abs(len - best.len) <= 1e-6 && ns < best.ns)) best = { len, ns, order, cutIdx };
       }
       rec(best.order.slice(0, best.cutIdx + 1).map((o) => o[1]), A);
@@ -436,28 +465,6 @@ export function districtState(zctas, k, strategy, opts = {}) {
       rec(sideA, A); rec(sideB, kk - A);
     };
     rec([...Array(N).keys()], k);
-  }
-
-  /**
-   * Most typical of an ensemble: draw `M` random tree-split maps, then keep the medoid — the map with
-   * the fewest total disagreements with all others about which neighbouring ZIP pairs share a district.
-   */
-  function centralPartition(rng, M) {
-    const E1 = [], E2 = [];
-    for (let i = 0; i < N; i++) for (const j of adj[i]) if (i < j) { E1.push(i); E2.push(j); }
-    const maps = [], cutCount = new Int32Array(E1.length);
-    for (let mm = 0; mm < M; mm++) {
-      D.fill(-1); treePartition(rng);
-      const cutv = new Uint8Array(E1.length);
-      for (let e = 0; e < E1.length; e++) if (D[E1[e]] !== D[E2[e]]) { cutv[e] = 1; cutCount[e]++; }
-      maps.push({ D: Int32Array.from(D), cutv });
-    }
-    let bestI = 0, bestScore = Infinity;
-    maps.forEach((mp, i) => {
-      let sc = 0; for (let e = 0; e < E1.length; e++) sc += mp.cutv[e] ? M - cutCount[e] : cutCount[e];
-      if (sc < bestScore) { bestScore = sc; bestI = i; }
-    });
-    D.set(maps[bestI].D);
   }
 
   function finish() {

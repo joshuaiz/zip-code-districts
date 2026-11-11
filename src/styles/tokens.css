@@ -1,13 +1,13 @@
 /* Design tokens shared by every page (map + methodology). Unlayered, so they win over Tailwind's theme layer.
-   Civic-cartography palette: ink navy text, paper-grey ground, one federal-blue accent.
+   Atlas palette: near-black ink on warm paper, hairline rules, one deep civic-blue accent.
    Dark mode follows prefers-color-scheme, or force it with data-theme="light|dark" on <html>. */
 :root {
-  --ground: #eef0f3;
-  --panel: #ffffff;
-  --ink: #17202e;
-  --muted: #5b6573;
-  --rule: #d8dde4;
-  --accent: #1d4ed8;
+  --ground: #ffffff;
+  --panel: #fbfaf7;
+  --ink: #1d2127;
+  --muted: #4f5662;
+  --rule: #e3ded4;
+  --accent: #1f4e8c;
   --sea: #e6ebf1;
   --land: #bfc4cb;
   --good: #15803d; --warn: #b45309; --bad: #b91c1c;
