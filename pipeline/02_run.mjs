@@ -1,35 +1,39 @@
-// Step 2: run all four strategies for every state; write assignments + a stats report.
+// Step 2: run every mode for every state; "best" picks per state by the fixed rule in pickBest().
 import fs from "node:fs";
-import { districtState, STRATEGIES } from "../src/lib/districter.js";
+import { districtState, pickBest, verifiableSeed, STRATEGY_INFO, PUBLIC_SEED } from "../src/lib/districter.js";
 
 const [, , graphPath, outDir] = process.argv;
 const g = JSON.parse(fs.readFileSync(graphPath, "utf8"));
 const byState = {};
 for (const n of g.nodes) (byState[n.st] ??= []).push(n);
+const modes = Object.keys(STRATEGY_INFO).filter((m) => m !== "best");
 
-const out = { generated: new Date().toISOString(), source: g.source, seats: g.seats, strategies: STRATEGIES, results: {} };
-const report = [];
-for (const strat of Object.keys(STRATEGIES)) {
-  const t0 = Date.now();
-  const assign = {}, stats = {};
+const out = { generated: new Date().toISOString(), source: g.source, seats: g.seats, publicSeed: PUBLIC_SEED,
+  strategies: STRATEGY_INFO, results: {} };
+const raw = {}; // raw[mode][state] = result
+for (const m of modes) {
+  const t0 = Date.now(); raw[m] = {};
   for (const [st, zs] of Object.entries(byState)) {
-    const k = g.seats[st];
-    const r = districtState(zs, k, strat);
-    Object.assign(assign, Object.fromEntries(Object.entries(r.assignment).map(([z, d]) => [z, `${st}-${d}`])));
-    stats[st] = { ideal: Math.round(r.ideal), districts: r.districts.map((d) => [d.n, d.pop, d.zctas]) };
+    const seed = m === "random" || m === "central" ? verifiableSeed(st, m) : undefined;
+    raw[m][st] = districtState(zs, g.seats[st], m, { seed });
   }
-  out.results[strat] = { assignment: assign, stats };
-  // summary
-  let worst = 0, sumAbs = 0, cnt = 0, within1 = 0, within5 = 0;
-  for (const [st, s] of Object.entries(stats)) {
-    if (g.seats[st] === 1) continue;
-    for (const [, p] of s.districts) {
-      const dev = (p - s.ideal) / s.ideal; worst = Math.max(worst, Math.abs(dev)); sumAbs += Math.abs(dev); cnt++;
-      if (Math.abs(dev) <= 0.01) within1++; if (Math.abs(dev) <= 0.05) within5++;
-    }
+  console.log(`${m.padEnd(9)} ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+}
+raw.best = {}; const winners = {};
+for (const st of Object.keys(byState)) {
+  const w = pickBest(modes.map((m) => ({ mode: m, result: raw[m][st] })));
+  raw.best[st] = w.result; winners[st] = w.mode;
+}
+for (const m of [...modes, "best"]) {
+  const assignment = {}, stats = {};
+  for (const [st, r] of Object.entries(raw[m])) {
+    for (const [z, d] of Object.entries(r.assignment)) assignment[z] = `${st}-${d}`;
+    stats[st] = { ideal: Math.round(r.ideal), districts: r.districts.map((d) => [d.n, d.pop, d.zctas]), cutEdges: r.cutEdges, countySplits: r.countySplits };
+    if (m === "best") stats[st].winner = winners[st];
   }
-  report.push(`${strat.padEnd(7)} ${(Date.now() - t0) + "ms"}  districts(multi-seat states)=${cnt}  meanAbsDev=${(100 * sumAbs / cnt).toFixed(2)}%  max=${(100 * worst).toFixed(1)}%  ≤1%: ${within1}  ≤5%: ${within5}`);
+  out.results[m] = { assignment, stats };
 }
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(`${outDir}/assignments.json`, JSON.stringify(out));
-console.log(report.join("\n"));
+const tally = {}; for (const w of Object.values(winners)) tally[w] = (tally[w] || 0) + 1;
+console.log("best-score winners by state count:", tally);

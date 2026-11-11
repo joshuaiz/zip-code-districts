@@ -3,31 +3,7 @@
    - unlayered: beats Tailwind v4's layered preflight/utilities, so the standalone look is preserved. */
 /* Layout: full-bleed map with a left control rail (bottom sheet on phones). Civic-cartography palette:
    ink navy text, paper-grey ground, one federal-blue accent; district fills are a categorical set. */
-:root {
-  --ground: #eef0f3;
-  --panel: #ffffff;
-  --ink: #17202e;
-  --muted: #5b6573;
-  --rule: #d8dde4;
-  --accent: #1d4ed8;
-  --sea: #e6ebf1;
-  --land: #bfc4cb;
-  --good: #15803d; --warn: #b45309; --bad: #b91c1c;
-  --font-display: "Public Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-body: "Public Sans", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --ground: #0f141b; --panel: #161d27; --ink: #e6ebf2; --muted: #9aa5b4; --rule: #2a3442;
-    --accent: #7aa2ff; --sea: #0b1016; --land: #3a404a; --good: #4ade80; --warn: #fbbf24; --bad: #f87171; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --ground: #0f141b; --panel: #161d27; --ink: #e6ebf2; --muted: #9aa5b4; --rule: #2a3442;
-  --accent: #7aa2ff; --sea: #0b1016; --land: #3a404a; --good: #4ade80; --warn: #fbbf24; --bad: #f87171; color-scheme: dark;
-}
+/* :root tokens (colors, fonts, dark mode) live in tokens.css, loaded by the Base layout. */
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 body { background: var(--ground); color: var(--ink); font: 14px/1.45 var(--font-body); }
@@ -43,8 +19,12 @@ h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacin
 .seg button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--ink); box-shadow: inset 0 0 0 1px var(--accent); }
 .seg button:hover { border-color: var(--accent); }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg .grp { grid-column: 1 / -1; font: 600 10.5px/1 var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 6px 0 0; }
+.seg .grp:first-child { margin-top: 0; }
+.desc a { color: var(--accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.desc a:hover { text-decoration: underline; }
 .desc { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .stat { border: 1px solid var(--rule); border-radius: 8px; padding: 8px 9px; }
 .stat b { display: block; font: 500 17px/1.1 var(--font-mono); font-variant-numeric: tabular-nums; }
 .stat span { font-size: 11px; color: var(--muted); }

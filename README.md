@@ -4,7 +4,7 @@
 
 ```
 yarn install
-yarn dev           # http://localhost:8787  — the map is the home page
+yarn dev           # http://localhost:8787  — the map is the home page, /methodology explains every mode
 yarn build         # static output in dist/
 yarn preview       # serve dist/ on :8787
 yarn astro check   # type-check src/
@@ -13,21 +13,40 @@ yarn astro check   # type-check src/
 Requires Node 22+. Astro's dev server runs detached; stop it with `yarn astro dev stop`.
 `/districts` redirects to `/`.
 
-U.S. House districts built by aggregating adjacent ZIP Code Tabulation Areas (ZCTAs), with four
-non-partisan seeding strategies. No voter, party, race or incumbent data is used anywhere.
+U.S. House districts built by aggregating adjacent ZIP Code Tabulation Areas (ZCTAs), with nine
+non-partisan districting modes. No voter, party, race or incumbent data is used anywhere.
 
-## Results (2020 Census)
+## Modes and results (2020 Census)
 
-| Strategy | Mean deviation | Largest deviation | Within ±1% |
-|---|---|---|---|
-| NW corner | 0.22% | 1.65% | 418 / 429 |
-| NE corner | 0.22% | 1.70% | 419 / 429 |
-| State center | 0.22% | 3.36% | 416 / 429 |
-| ZIP number | 0.20% | 1.80% | 424 / 429 |
+| Group | Mode | Mean dev | Max dev | Within ±1% | Counties split | Cut edges |
+|---|---|---|---|---|---|---|
+| Start point | NW corner | 0.22% | 1.65% | 418 / 429 | 1,060 | 17,352 |
+| Start point | NE corner | 0.22% | 1.70% | 419 / 429 | 1,091 | 17,524 |
+| Start point | State center | 0.22% | 3.36% | 416 / 429 | 1,119 | 17,747 |
+| Start point | ZIP number | 0.20% | 1.80% | 424 / 429 | 1,146 | 18,005 |
+| Fixed rule | Shortest splitline | 0.24% | 1.65% | 413 / 429 | 1,014 | 16,975 |
+| Fixed rule | Counties first | 0.30% | 3.36% | 415 / 429 | 703 | 17,532 |
+| Pick by rule | Random draw | 0.26% | 2.00% | 414 / 429 | 1,071 | 17,202 |
+| Pick by rule | Most typical (of 100) | 0.27% | 2.12% | 417 / 429 | 1,022 | 16,034 |
+| Pick by rule | Best score | 0.30% | 1.65% | 411 / 429 | 944 | 15,094 |
 
-All 435 districts in every strategy: correct seat count per state, every ZCTA assigned once, every
-district contiguous (checked independently by `pipeline/05_verify.py`). The 6 single-seat states
-(AK, DE, ND, SD, VT, WY) are one district each and are excluded from the deviation stats.
+Cut edges = adjacent ZIP pairs split between districts (lower = smoother, more compact borders).
+Every mode: correct seat count per state, every ZCTA assigned once, every district contiguous
+(`pipeline/05_verify.py`). Single-seat states (AK, DE, ND, SD, VT, WY) are excluded from deviation stats.
+
+- **Shortest splitline**: recursive shortest straight cut at the A:B population ratio (A = ⌊k/2⌋),
+  every whole-degree angle, ZIPs assigned by centroid side; ties → closest to north–south.
+- **Counties first**: growth finishes a county before entering a new one; border term makes cutting
+  along county lines 6–7× cheaper. If a state ends up beyond ±2%, it is rebalanced once at the
+  normal border weight (this happens in New York, where each NYC borough is a county).
+- **Random draw**: random spanning-tree splits, seeded by `verifiableSeed(state, "random")` =
+  FNV-1a of `"2020 Census apportionment population 331108434|<STATE>|random"`. One draw, no rerolls.
+  For a real cycle, replace the seed with a public value published after the rules are fixed.
+- **Most typical**: 100 random tree-split maps per state; keep the medoid (fewest total disagreements
+  about which neighbouring ZIP pairs share a district); then the normal balancing.
+- **Best score** (`pickBest`): among the other 8 modes' maps for a state, keep maps within ±2%,
+  then fewest cut edges, then lowest mean deviation. Per-state winner is in `districts.json`
+  → `stateStats.best[ST].winner`.
 
 ## Bundle layout
 
@@ -37,13 +56,17 @@ public/
                                 state outlines, district label points (one shared topology, 14.7 MB, 3.9 MB gzipped)
   data/states/XX.topo.json      full-resolution ZCTAs + districts per state, lazy-loaded at zoom ≥ 7 (43 MB total)
   data/land.topo.json           Census state boundaries (grey base layer: shows unpopulated land with no ZIP area)
+  data/modes.json               per-ZIP district number + colour for every mode, attached to features in the browser
   data/districts.json           per-district population, deviation, ZCTA count + summaries (45 KB)
 src/
   layouts/Base.astro            <html>/<head>: meta, title, Google Fonts (Public Sans, IBM Plex Mono), global.css
   components/ZipDistrictMap.astro  the map: sidebar + MapLibre map markup and a bundled <script>
   styles/map.css                the map's styles (global and unlayered, see below)
-  styles/global.css             Tailwind v4 entry (@import "tailwindcss")
+  styles/tokens.css             shared :root colour/font tokens + dark mode, loaded by Base
+  styles/global.css             Tailwind v4 entry + typography plugin + font theme
+  content/methodology.md        methodology text; raw <h2 id>/<h3 id> anchors (#mode-nw … #mode-best)
   pages/index.astro             Base + <ZipDistrictMap />
+  pages/methodology.astro       renders methodology.md with Tailwind Typography (prose)
   lib/districter.js             the districting engine: dependency-free ES module, runs in Node or the browser
 data/
   zcta_graph.json               the ZCTA graph the engine runs on (pop, state, coordinates, neighbours) 4.8 MB
@@ -58,7 +81,11 @@ pipeline/                     rebuild everything from raw Census files
 `ZipDistrictMap.astro` is a plain Astro component, no UI framework. Its `<script>` is bundled by Vite
 and imports `maplibre-gl` (plus its CSS) and `topojson-client` from node_modules. It fetches data
 from `${BASE_URL}data/`, so it works under any route or `base`. Behaviour:
-- strategy buttons recolor the map and set the URL hash (`/#nw`, `#ne`, `#center`, `#zip` deep-link)
+- mode buttons are generated from `districts.json` → `strategies` (grouped); each recolors the map
+  and sets the URL hash (`/#nw` … `/#best` deep-link). "How this mode works →" links to
+  `/methodology#mode-<id>`
+- per-ZIP district ids and colours for all modes come from `data/modes.json` and are attached to the
+  ZIP features in the browser (the geometry files don't carry them)
 - ZIP search outlines the ZIP and opens its district card; ZIP chips in the card jump to that ZIP
 - the state dropdown fills the district table; clicking a row selects the district
 - full-resolution `data/states/XX.topo.json` files load on demand at zoom ≥ 7
