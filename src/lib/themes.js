@@ -4,12 +4,12 @@
  *   ground  the map background (sea / outside the U.S.)     land    land with no ZIP area (no residents)
  *   border  district border line, bw its width scale        state   state line, sw its width scale
  *   sel     outline of the selected district / ZIP           dark    light text and halos on this theme
- * Sources: Standard = ColorBrewer Pastel1; Clear = Paul Tol "light" and Bold = Okabe–Ito (both colour-blind safe);
+ * Sources: Standard = ColorBrewer Pastel1; Accessible = Paul Tol "light" and Bold = Okabe–Ito (both colour-blind safe);
  * Factbook = after the
  * CIA World Factbook reference maps; the rest are this project's.
  */
 export const THEMES = [
-  { id: "clear", name: "Clear", group: "Accessible", desc: "Color-blind safe (Paul Tol light)",
+  { id: "accessible", name: "Accessible", group: "Accessible", desc: "Color-blind safe (Paul Tol light)",
     fills: ["#77aadd", "#ee8866", "#eedd88", "#ffaabb", "#44bb99"], ground: "#ffffff", land: "#eeeeee", border: "#ffffff", bw: 1.3, state: "#111111", sw: 1.2, sel: "#000000", dark: false },
   { id: "standard", name: "Standard", group: "Standard", desc: "Reference-map pastels, grey state lines",
     fills: ["#fbb4ae", "#b3cde3", "#ccebc5", "#decbe4", "#fed9a6"], ground: "#ffffff", land: "#ededed", border: "#ffffff", bw: 1, state: "#3d3d3d", sw: 1, sel: "#111111", dark: false },
@@ -32,5 +32,6 @@ export const THEMES = [
   { id: "blueprint", name: "Blueprint", group: "Just for fun", desc: "Blueprint blues, chalk-white lines",
     fills: ["#1f5d93", "#2f74b3", "#164a7a", "#3b86c6", "#265f9e"], ground: "#0b2f52", land: "#123a62", border: "#cfe3ff", bw: 0.7, state: "#ffffff", sw: 1.2, sel: "#ffd34d", dark: true },
 ];
-export const DEFAULT_THEME = "clear";
-export const themeById = (id) => THEMES.find((t) => t.id === id) ?? THEMES[0];
+export const DEFAULT_THEME = "accessible";
+const ALIASES = { clear: "accessible" }; // old ids, so saved choices and shared links keep working
+export const themeById = (id) => THEMES.find((t) => t.id === (ALIASES[id] ?? id)) ?? THEMES[0];

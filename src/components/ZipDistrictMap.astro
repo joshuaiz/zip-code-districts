@@ -231,8 +231,8 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
   // ---- map themes ----
   function buildThemePicker() {
     const list = $("themelist"), btn = $("themebtn"), groups = [...new Set(THEMES.map((t) => t.group))];
-    list.innerHTML = groups.map((g) => `<div class="tgrp" role="presentation">${g}</div>` + THEMES.filter((t) => t.group === g).map((t) =>
-      `<button type="button" role="option" aria-selected="false" data-t="${t.id}" tabindex="-1"><span class="sws" aria-hidden="true">${t.fills.map((c) => `<i style="background:${c}"></i>`).join("")}</span><span class="tn"><b>${t.name}</b><small>${t.desc}</small></span><svg class="tick" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>`).join("")).join("");
+    list.innerHTML = groups.map((g) => { const ts = THEMES.filter((t) => t.group === g); return (ts.length === 1 && ts[0].name === g ? "" : `<div class="tgrp" role="presentation">${g}</div>`) + ts.map((t) =>
+      `<button type="button" role="option" aria-selected="false" data-t="${t.id}" tabindex="-1"><span class="sws" aria-hidden="true">${t.fills.map((c) => `<i style="background:${c}"></i>`).join("")}</span><span class="tn"><b>${t.name}</b><small>${t.desc}</small></span><svg class="tick" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>`).join(""); }).join("");
     const opts = () => [...list.querySelectorAll("button")];
     const open = (o) => { list.hidden = !o; btn.setAttribute("aria-expanded", String(o)); if (o) (list.querySelector('[aria-selected="true"]') || opts()[0]).focus(); };
     btn.addEventListener("click", () => open(list.hidden));
