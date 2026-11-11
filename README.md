@@ -180,5 +180,22 @@ node pipeline/04_meta.mjs data/assignments.json public/data/districts.json && no
 python3 pipeline/05_verify.py data/zcta_graph.json data/assignments.json
 ```
 
+**Partisan outcomes (measured after drawing, never used to draw).** Scores every mode against the 2024
+presidential vote. Put the NYT precinct file (`precincts-with-results.topojson`, from
+[nytimes/presidential-precinct-map-2024](https://github.com/nytimes/presidential-precinct-map-2024)) and
+`2024_US_County_Level_Presidential_Results.csv` (from
+[tonmcg/US_County_Level_Election_Results_08-24](https://github.com/tonmcg/US_County_Level_Election_Results_08-24))
+in `data/raw/`, then:
+```
+pip install geopandas pyarrow ijson
+python3 pipeline/06a_decode_precincts.py   # -> data/raw/precincts/<ST>.parquet
+python3 pipeline/06b_overlay_votes.py      # area-weighted precinct -> ZIP votes: data/raw/zcta_votes_2024.csv
+python3 pipeline/06c_outcomes.py           # -> data/outcomes/2024_{modes,states,districts}.csv, 2024.json
+```
+`efficiency_gap_pct` > 0 favours Republicans; `median_minus_nation_pts` < 0 means the median district is redder
+than the nation. The NYT data is licensed for non-commercial use with credit, so only district-level results are
+committed; the raw and ZIP-level files stay in the git-ignored `data/raw/`.
+
 Sources: U.S. Census Bureau. 2020 Census DHC Table P1 by ZCTA; 2020 cartographic boundaries
 `cb_2020_us_zcta520_500k` and `cb_2020_us_state_500k`; 2020 apportionment results.
+Outcome analysis: The New York Times 2024 precinct results; Tony McGovern's 2024 county results; The Downballot's 2024 results by district (enacted-map baseline).

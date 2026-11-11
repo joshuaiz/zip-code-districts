@@ -1,0 +1,126 @@
+{
+ "national": {
+  "harris": 74655886,
+  "trump": 77228608,
+  "harris_two_party": 0.4915
+ },
+ "modes": [
+  {
+   "mode": "splitline",
+   "label": "Shortest splitline",
+   "harris_seats": 202,
+   "trump_seats": 233,
+   "proportional_harris": 213.8,
+   "efficiency_gap_pct": 3.45,
+   "median_minus_nation_pts": -1.45,
+   "competitive_45_55": 123,
+   "harris_seats_at_50_50": 211,
+   "lean_r_15plus": 141,
+   "lean_d_15plus": 113
+  },
+  {
+   "mode": "splitcounty",
+   "label": "Splitline + counties",
+   "harris_seats": 195,
+   "trump_seats": 240,
+   "proportional_harris": 213.8,
+   "efficiency_gap_pct": 5.38,
+   "median_minus_nation_pts": -1.61,
+   "competitive_45_55": 118,
+   "harris_seats_at_50_50": 205,
+   "lean_r_15plus": 137,
+   "lean_d_15plus": 122
+  },
+  {
+   "mode": "county",
+   "label": "Counties first",
+   "harris_seats": 194,
+   "trump_seats": 241,
+   "proportional_harris": 213.8,
+   "efficiency_gap_pct": 5.38,
+   "median_minus_nation_pts": -1.53,
+   "competitive_45_55": 116,
+   "harris_seats_at_50_50": 206,
+   "lean_r_15plus": 138,
+   "lean_d_15plus": 123
+  },
+  {
+   "mode": "center",
+   "label": "State center",
+   "harris_seats": 203,
+   "trump_seats": 232,
+   "proportional_harris": 213.8,
+   "efficiency_gap_pct": 3.25,
+   "median_minus_nation_pts": -1.56,
+   "competitive_45_55": 116,
+   "harris_seats_at_50_50": 208,
+   "lean_r_15plus": 139,
+   "lean_d_15plus": 122
+  },
+  {
+   "mode": "nw",
+   "label": "NW corner",
+   "harris_seats": 197,
+   "trump_seats": 238,
+   "proportional_harris": 213.8,
+   "efficiency_gap_pct": 4.48,
+   "median_minus_nation_pts": -0.59,
+   "competitive_45_55": 112,
+   "harris_seats_at_50_50": 212,
+   "lean_r_15plus": 140,
+   "lean_d_15plus": 120
+  },
+  {
+   "mode": "ne",
+   "label": "NE corner",
+   "harris_seats": 200,
+   "trump_seats": 235,
+   "proportional_harris": 213.8,
+   "efficiency_gap_pct": 3.89,
+   "median_minus_nation_pts": -1.6,
+   "competitive_45_55": 117,
+   "harris_seats_at_50_50": 209,
+   "lean_r_15plus": 143,
+   "lean_d_15plus": 121
+  },
+  {
+   "mode": "zip",
+   "label": "ZIP number",
+   "harris_seats": 205,
+   "trump_seats": 230,
+   "proportional_harris": 213.8,
+   "efficiency_gap_pct": 2.84,
+   "median_minus_nation_pts": -1.12,
+   "competitive_45_55": 119,
+   "harris_seats_at_50_50": 212,
+   "lean_r_15plus": 139,
+   "lean_d_15plus": 119
+  },
+  {
+   "mode": "best",
+   "label": "Best score",
+   "harris_seats": 196,
+   "trump_seats": 239,
+   "proportional_harris": 213.8,
+   "efficiency_gap_pct": 5.04,
+   "median_minus_nation_pts": -1.4,
+   "competitive_45_55": 120,
+   "harris_seats_at_50_50": 208,
+   "lean_r_15plus": 145,
+   "lean_d_15plus": 123
+  },
+  {
+   "mode": "random",
+   "label": "Random draw",
+   "harris_seats": 207,
+   "trump_seats": 228,
+   "proportional_harris": 213.8,
+   "efficiency_gap_pct": 2.37,
+   "median_minus_nation_pts": -0.95,
+   "competitive_45_55": 110,
+   "harris_seats_at_50_50": 214,
+   "lean_r_15plus": 140,
+   "lean_d_15plus": 125
+  }
+ ]
+}

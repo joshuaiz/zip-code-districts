@@ -244,6 +244,35 @@ Deviation is measured against each state's own ideal, over the 429 districts in 
 
 The 3.36% cases are the same district in New York, and Splitline + counties' 2.71% is also in New York (NY-5, Queens): large, dense ZIPs and island geography limit how finely population can be traded there.
 
+<h2 id="outcomes">Partisan outcomes (measured after drawing)</h2>
+
+The maps are drawn without any political data. After they were finished, each mode was scored against the 2024 presidential vote, as promised under [Fair process, not engineered outcomes](#principle). These numbers were not used to choose, tune or rank any mode, and the ranking above is unchanged.
+
+**How it was measured.** Precinct results from the *New York Times* 2024 precinct map were assigned to ZIP areas by area overlap, then added up for each district. Where the precinct file is incomplete (mainly Oklahoma and Tulsa counties in Oklahoma), official county totals fill the gap, spread by ZIP population, so Oklahoma's district results are approximate. Presidential votes stand in for each district's partisan lean. They are not House results, and real House races also turn on candidates, incumbency and turnout.
+
+Nationally, Harris won 49.15% of the two-party vote. A seat share matching that vote share would be about 214 of 435 seats.
+
+| Rank | Mode | Harris seats | Trump seats | Efficiency gap | Median district vs. nation | Competitive seats (45–55%) | Harris seats at a 50/50 vote |
+|---|---|---|---|---|---|---|---|
+| 1 | Shortest splitline | 202 | 233 | 3.5% toward R | 1.5 pts more R | 123 | 211 |
+| 2 | Splitline + counties | 195 | 240 | 5.4% toward R | 1.6 pts more R | 118 | 205 |
+| 3 | Counties first | 194 | 241 | 5.4% toward R | 1.5 pts more R | 116 | 206 |
+| 4 | State center | 203 | 232 | 3.3% toward R | 1.6 pts more R | 116 | 208 |
+| 5 | NW corner | 197 | 238 | 4.5% toward R | 0.6 pts more R | 112 | 212 |
+| 6 | NE corner | 200 | 235 | 3.9% toward R | 1.6 pts more R | 117 | 209 |
+| 7 | ZIP number | 205 | 230 | 2.8% toward R | 1.1 pts more R | 119 | 212 |
+| 8 | Best score | 196 | 239 | 5.0% toward R | 1.4 pts more R | 120 | 208 |
+| 9 | Random draw | 207 | 228 | 2.4% toward R | 1.0 pts more R | 110 | 214 |
+| — | *Enacted 2024 maps* | *205* | *230* | | *about 1.5 pts more R* | | |
+
+*Efficiency gap*: the difference in each party's "wasted" votes (votes for a loser, or a winner's votes beyond 50%), as a share of all votes. *Median district vs. nation*: how much redder the middle district is than the country. *50/50 vote*: every district shifted by the same amount until the national vote is tied. The enacted-map row is The Downballot's count for the districts used in 2024.
+
+**What the numbers show.** Every mode gives Harris fewer seats than her vote share would suggest, by 7 to 20 seats, and every mode's median district is redder than the nation. The enacted 2024 maps show a similar tilt. Most of the gap comes from a few states: under shortest splitline, Harris falls furthest short of a proportional share in Florida, Ohio, Texas, North Carolina, Indiana and Pennsylvania, and does better than proportional in California, New Jersey, Massachusetts, Connecticut and Washington. The modes differ by up to 13 seats from each other. The two county-keeping modes lean furthest toward Republicans, and shortest splitline produces the most competitive seats.
+
+**How to read it.** People who judge maps by process will see this as political geography at work: Democratic voters are concentrated in cities, so blind, compact districts waste more of their votes, and no one chose that result. People who judge maps by outcome will see a consistent tilt that a fair map should correct. This analysis doesn't settle that debate. It makes the trade-off visible, and both readings start from the same numbers. One election is also a narrow test. The result depends on where each party's voters live, which shifts over time.
+
+The per-district, per-state and per-mode results are in `data/outcomes/`, and the scripts are `pipeline/06a`–`06c`.
+
 <h2 id="verification">How the maps were checked</h2>
 
 A separate program, written independently of the districting code, checks every mode and confirms that:
@@ -261,7 +290,7 @@ All nine modes pass.
 - **Exact population equality.** Courts hold congressional districts to near-exact equality (*Karcher v. Daggett*, 1983). Whole ZIPs can hold up to about 130,000 people, so ±1–2% is near the practical limit for a ZIP-only map. Exact equality would mean splitting a few ZIPs along census blocks.
 - **Voting Rights Act.** A mechanical method doesn't check compliance with Section 2, which can require districts that give minority communities an opportunity to elect their preferred candidates.
 - **ZIP areas aren't ZIP codes.** ZCTAs approximate delivery areas, and some addresses fall in a ZCTA with a different number than their mailing ZIP.
-- **Blind to politics is not the same as neutral in outcome.** Researchers Jowei Chen and Jonathan Rodden argue that because one party's voters are more concentrated in cities, compact, politics-blind maps can systematically favor the other party. Others, including Michael McDonald, dispute how strong that effect is. This project judges fairness by process: no political data, rules fixed in advance (see [Fair process, not engineered outcomes](#principle)). It doesn't yet measure partisan outcomes; publishing that analysis is a planned next step.
+- **Blind to politics is not the same as neutral in outcome.** Researchers Jowei Chen and Jonathan Rodden argue that because one party's voters are more concentrated in cities, compact, politics-blind maps can systematically favor the other party. Others, including Michael McDonald, dispute how strong that effect is. This project judges fairness by process: no political data, rules fixed in advance (see [Fair process, not engineered outcomes](#principle)). Partisan outcomes are measured after drawing and published in [Partisan outcomes](#outcomes): every mode tilts toward Republicans on 2024 presidential results, by about as much as the enacted maps.
 - **One census.** Everything is based on 2020 data. The pipeline can be rerun after the 2030 census.
 - **Seed for the random modes.** See the caveat under [Random draw](#mode-random).
 
@@ -274,3 +303,6 @@ All nine modes pass.
 - Iowa Legislative Services Agency redistricting criteria ([Iowa Code §42.4](https://www.legis.iowa.gov/docs/code/42.4.pdf)).
 - DeFord, Duchin and Solomon, "Recombination: A family of Markov chains for redistricting" (random spanning-tree methods) ([mggg.org](https://mggg.org/ReCom)).
 - Chen and Rodden, "Unintentional Gerrymandering: Political Geography and Electoral Bias in Legislatures," *Quarterly Journal of Political Science*, 2013.
+- *The New York Times*, "An Extremely Detailed Map of the 2024 Election," precinct results (non-commercial use with credit) ([github.com/nytimes/presidential-precinct-map-2024](https://github.com/nytimes/presidential-precinct-map-2024)).
+- Tony McGovern, 2024 county-level presidential results ([github.com/tonmcg/US_County_Level_Election_Results_08-24](https://github.com/tonmcg/US_County_Level_Election_Results_08-24)).
+- The Downballot, 2024 presidential results for all 435 House districts ([the-downballot.com](https://www.the-downballot.com/p/the-downballots-calculations-of-presidential)).

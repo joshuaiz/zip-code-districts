@@ -4,3 +4,6 @@ dist/
 .DS_Store
 .env*
 !yarn.lock
+
+# raw downloaded inputs (large, third-party licensed)
+data/raw/
