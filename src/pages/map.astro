@@ -1,0 +1,25 @@
+---
+// /map: the full-screen interactive map, under the site header. No footer: the map fills the rest of the screen.
+import Base from "../layouts/Base.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import ZipDistrictMap from "../components/ZipDistrictMap.astro";
+---
+<Base title="Map · ZIP Code Districts" description="Interactive map of all 435 U.S. House districts redrawn from whole ZIP codes, nine ways.">
+  <div class="mappage">
+    <SiteHeader current="map" />
+    <ZipDistrictMap />
+  </div>
+</Base>
+
+<style is:global>
+  .mappage {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .mappage > .app {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+  }
+</style>

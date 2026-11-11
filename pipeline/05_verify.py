@@ -26,3 +26,11 @@ for s, r in A["results"].items():
     print(f"{s:7} districts={len(members)} seatsMismatch={bad_seats} nonContiguous={len(noncontig)} popTotalOK={total_ok} maxDev={100*max(devs):.2f}% meanDev={100*sum(devs)/len(devs):.2f}%")
     ok &= not bad_seats and not noncontig and total_ok and len(members) == 435
 print("ALL CHECKS PASS" if ok else "CHECK FAILURES")
+
+# ZIP integrity: a ZIP may be divided only by a state line. Pieces of a split ZIP have ids "<zip>-<ST>" (one per state).
+pieces = collections.defaultdict(list)
+for n in g["nodes"]: pieces[n.get("zip", n["id"])].append(n["st"])
+split = {z: sts for z, sts in pieces.items() if len(sts) > 1}
+bad = {z: sts for z, sts in split.items() if len(set(sts)) != len(sts)}
+print(f"ZIPs divided by a state line: {len(split)} (into {sum(map(len, split.values()))} pieces) · ZIPs divided any other way: {len(bad)}")
+assert not bad, bad

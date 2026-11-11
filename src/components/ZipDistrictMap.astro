@@ -9,8 +9,8 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
 <div class="app">
   <aside>
     <header>
-      <h1>ZIP Code Districts</h1>
-      <p class="lede">All 435 U.S. House districts redrawn by joining neighboring ZIP codes, with no voter or party data. Each state keeps its 2020 seat count and every district aims for that state's ideal population.</p>
+      <h1>All 435 districts</h1>
+      <p class="lede">U.S. House districts redrawn by joining neighboring ZIP codes, with no voter or party data. Each state keeps its 2020 seat count and every district aims for that state's ideal population.</p>
     </header>
 
     <section aria-labelledby="h-strat">
@@ -50,7 +50,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     <details>
       <summary>Method and data</summary>
       <p><a href={`${base}methodology`}><b>Read the full methodology</b></a>: data, rules and a step-by-step explanation of every mode.</p>
-      <p><b>Building blocks.</b> 33,585 ZIP Code Tabulation Areas (the Census Bureau's land-area version of ZIP codes) with 2020 Census population. A ZIP that straddles a state line goes to the state holding most of its area. ZIPs are whole units and never split.</p>
+      <p><b>Building blocks.</b> 33,585 ZIP Code Tabulation Areas (the Census Bureau's land-area version of ZIP codes) with 2020 Census population. ZIPs are never split, with one exception: state lines come first, so the 137 ZIPs that a state line runs through are split at that line, one piece per state, each with its own Census population.</p>
       <p><b>Seats and targets.</b> Each state keeps its 2020 apportionment. The national average is 761,169 people per seat, but districts cannot cross state lines, so the target is the state's population divided by its seats (Montana ≈ 542,000 per district, Delaware ≈ 990,000 for its single seat).</p>
       <p><b>Modes.</b> Listed from most to least defensible as a neutral rule: the fewer choices a person could tune, the higher the rank (<a href={`${base}methodology#ranking`}>why this order</a>). <i>Fixed rule</i> modes follow one mechanical rule. <i>Start point</i> modes grow districts outward from an anchor. <i>Pick by rule</i> modes choose among many possible maps using a rule set before any map was drawn, so nobody can keep redrawing until they like the result.</p>
       <p><b>Same finish for every mode.</b> After a mode draws its first version, a balancing pass trades border ZIPs between neighboring districts to even out population, keeping every district in one piece and its borders smooth.</p>
@@ -63,10 +63,16 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
   </aside>
 
   <div id="map">
-    <div class="jump" role="group" aria-label="Jump to region">
-      <button type="button" data-view="l48" id="v-l48">Lower 48</button>
-      <button type="button" data-view="ak" id="v-ak">Alaska</button>
-      <button type="button" data-view="hi" id="v-hi">Hawaii</button>
+    <div class="mapctl">
+      <div class="jump" role="group" aria-label="Jump to region">
+        <button type="button" data-view="l48" id="v-l48">All 50 states</button>
+        <button type="button" data-view="ak" id="v-ak">Alaska</button>
+        <button type="button" data-view="hi" id="v-hi">Hawaii</button>
+      </div>
+      <div class="jump proj" role="radiogroup" aria-label="Map projection">
+        <button type="button" role="radio" data-proj="globe" aria-checked="true" title="Globe: true north, the U.S. curves as on a reference map">Globe</button>
+        <button type="button" role="radio" data-proj="mercator" aria-checked="false" title="Flat: Web Mercator, north is straight up everywhere">Flat</button>
+      </div>
     </div>
     <div class="themepick" id="themepick">
       <button type="button" class="themebtn" id="themebtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="themelist"><span class="sws" id="themesw" aria-hidden="true"></span><span id="themename">Theme</span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
@@ -78,6 +84,11 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
       <div class="li"><span class="k" id="lg-land"></span><span>No ZIP code area<small>Unpopulated land such as national forests, deserts and parks. Zero residents, so it belongs to no district.</small></span></div>
       <div class="li"><span class="k line" id="lg-state"></span><span>State line</span></div>
       <div class="li"><span class="k line thin" id="lg-border"></span><span>District border</span></div>
+    </div>
+    <!-- Alaska and Hawaii drawn below the Southwest, as on a reference map, so all 50 states fit in one view -->
+    <div class="insets" id="insets" hidden>
+      <div class="inset" id="inset-ak" role="button" tabindex="0" aria-label="Alaska: select a district, or press Enter to zoom to Alaska"><div class="inset-map"></div></div>
+      <div class="inset" id="inset-hi" role="button" tabindex="0" aria-label="Hawaii: select a district, or press Enter to zoom to Hawaii"><div class="inset-map"></div></div>
     </div>
     <div class="tip" id="tip"></div>
     <div class="loading" id="loading"><div>Loading 33,585 ZIP code areas…<div class="bar"><i id="loadbar"></i></div></div></div>
@@ -97,7 +108,11 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
   const pal = (i) => TH.fills[i] ?? "#999999";
   const widths = (stops, k) => ["interpolate", ["linear"], ["zoom"], ...stops.flatMap(([z, w]) => [z, +(w * k).toFixed(2)])];
   const DIST_W = [[3, 0.4], [7, 1.2], [11, 2.4]], STATE_W = [[3, 1], [7, 2.4], [11, 3.6]];
-  const VIEWS = { l48: [[-125, 24.3], [-66.8, 49.5]], ak: [[-170, 51], [-129.5, 71.5]], hi: [[-160.5, 18.8], [-154.6, 22.4]] };
+  // projection: "globe" (default; true north, the U.S. curves like a conic reference map, flattening as you zoom in)
+  // or "mercator" (flat). Remembered per browser.
+  let PROJ = "globe";
+  try { if (localStorage.getItem("zd-proj") === "mercator") PROJ = "mercator"; } catch (e) {}
+  const VIEWS = { l48: [[-127, 17], [-66.8, 49.5]], ak: [[-170, 51], [-129.5, 71.5]], hi: [[-160.5, 18.8], [-154.6, 22.4]] };
   const NAMES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
   // data folder relative to the site base, so fetches work from any route
   const BASE = import.meta.env.BASE_URL.replace(/\/?$/, "/");
@@ -108,7 +123,10 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
   const devText = (d) => (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d).toFixed(2) + "%";
 
   let S = location.hash.slice(1);   // validated against the mode list once data loads; default = top-ranked mode
-  let attachModes, meta, topo, zctaFC, distFC = {}, lblFC = {}, zipIndex = new Map(), distBBox = {}, distZips = {};
+  let attachModes, meta, topo, zctaFC, distFC = {}, lblFC = {}, zipIndex = new Map(), zipParts = new Map(), distBBox = {}, distZips = {};
+  // A ZIP split by a state line is stored as one piece per state, with ids like "42223-TN"; whole ZIPs keep their 5 digits.
+  const zipOf = (id) => id.slice(0, 5);
+  const zipLabel = (id) => (id.length > 5 ? `${zipOf(id)} (${id.slice(6)} part)` : id);
   let selected = null, pinnedZip = null, markers = [], stateBBox = {}, selFilter = ["==", ["get", "zcta"], "__none__"], zipFilter = selFilter;
   const EMPTY = { type: "FeatureCollection", features: [] }, NONE = ["==", ["get", "zcta"], "__none__"];
   const DETAIL_Z = 7; const detail = { loaded: new Set(), loading: new Set(), z: [], d: [] };
@@ -116,12 +134,25 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const map = new maplibregl.Map({
     container: "map",
-    style: { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": TH.ground } }] },
-    bounds: VIEWS.l48, fitBoundsOptions: { padding: 20 }, maxZoom: 13.5, minZoom: 2, dragRotate: false, pitchWithRotate: false,
+    // globe projection: at national zoom the U.S. curves with true north, like a conic reference map; it flattens to
+    // Mercator automatically as you zoom in. The space around the globe shows #map's background (the theme's ground).
+    style: { version: 8, projection: { type: PROJ }, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": TH.ground } }] },
+    bounds: VIEWS.l48, fitBoundsOptions: { padding: 20 }, maxZoom: 13.5, minZoom: 1, dragRotate: false, pitchWithRotate: false,
     attributionControl: { compact: true, customAttribution: "Boundaries & population: U.S. Census Bureau (2020)" },
   });
   map.touchZoomRotate.disableRotation();
+  if (import.meta.env.DEV) window.__zd = { map, INSETS: () => INSETS }; // dev-only handle for debugging
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+  // reset button under + / −: back to the national view (same as "All 50 states")
+  map.addControl({
+    onAdd() {
+      const el = document.createElement("div"); el.className = "maplibregl-ctrl maplibregl-ctrl-group";
+      el.innerHTML = `<button type="button" class="zd-reset" title="Reset zoom: all 50 states" aria-label="Reset zoom to all 50 states"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M13.5 6V2.5H10M2.5 10v3.5H6M13.5 10v3.5H10" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>`;
+      el.querySelector("button").addEventListener("click", () => map.easeTo({ ...nationalCamera(), duration: 700 }));
+      return el;
+    },
+    onRemove() {},
+  }, "top-right");
 
   async function fetchWithProgress(url, onProg) {
     const res = await fetch(url);
@@ -156,7 +187,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     };
     zctaFC = topojson.feature(topo, topo.objects.zctas);
     for (const f of zctaFC.features) attachModes(f, f.properties.st);
-    for (const f of zctaFC.features) zipIndex.set(f.properties.zcta, f);
+    for (const f of zctaFC.features) { const id = f.properties.zcta; zipIndex.set(id, f); (zipParts.get(zipOf(id)) ?? zipParts.set(zipOf(id), []).get(zipOf(id))).push(id); }
     for (const s of Object.keys(meta.strategies)) {
       distFC[s] = topojson.feature(topo, topo.objects["dist_" + s]);
       lblFC[s] = topojson.feature(topo, topo.objects["lbl_" + s]);
@@ -196,6 +227,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     map.addLayer({ id: "dd-sel-line", type: "line", source: "dd", filter: NONE, paint: selLine });
     map.addLayer({ id: "zip-line", type: "line", source: "zctas", filter: NONE, paint: { "line-color": TH.sel, "line-width": 2.2, "line-dasharray": [2, 1] } });
     map.addLayer({ id: "zd-zip-line", type: "line", source: "zd", filter: NONE, paint: { "line-color": TH.sel, "line-width": 2.2, "line-dasharray": [2, 1] } });
+    buildInsets(topojson.feature(landTopo, landTopo.objects.land));
     $("loading").remove();
     buildStrategies();
     buildThemePicker();
@@ -266,6 +298,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     $("lg-land").style.background = t.land;
     $("lg-state").style.background = `linear-gradient(180deg, ${t.ground} 0 40%, ${t.state} 40% 60%, ${t.ground} 60%)`;
     $("lg-border").style.background = `linear-gradient(90deg, ${f[0]} 0 44%, ${t.border} 44% 56%, ${f[1]} 56%)`;
+    styleInsets();
     if (!initial) { renderCard(); renderStateTable(); }
   }
 
@@ -286,6 +319,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     map.setPaintProperty("zd-fill", "fill-color", fillExpr());
     map.setFilter("dd-line", ["==", ["get", "s"], s]);
     map.getSource("dist").setData(distFC[s]);
+    styleInsets(true);
     // keep the same place selected: follow the pinned ZIP, or the old district's first ZIP
     let anchorZip = pinnedZip || (selected && distZips[prevS]?.[selected]?.[0]);
     prevS = s;
@@ -302,6 +336,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     const fd = ["all", ["==", ["get", "s"], S], ["==", ["get", "d"], id || "__none__"]];
     selFilter = f; refreshDetail();
     map.setFilter("dd-sel-fill", fd); map.setFilter("dd-sel-line", fd);
+    for (const { m, loaded } of Object.values(INSETS)) if (loaded) m.setFilter("sel-line", f);
     renderCard();
     renderStateTable();
     if (id && fly) map.fitBounds(distBBox[S][id], { padding: 50, maxZoom: 10.5, duration: 700 });
@@ -323,7 +358,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
         <dt>State ideal</dt><dd>${fmt(meta.ideal[st])}</dd>
         <dt>ZIP codes</dt><dd>${nz}</dd>
       </dl>
-      <div class="zips" aria-label="ZIP codes in ${selected}">${zips.map((z) => `<button type="button" data-zip="${z}" ${z === pinnedZip ? 'style="border-color:var(--accent)"' : ""}>${z}</button>`).join("")}</div>
+      <div class="zips" aria-label="ZIP codes in ${selected}">${zips.map((z) => `<button type="button" data-zip="${z}" ${z === pinnedZip ? 'style="border-color:var(--accent)"' : ""}>${zipLabel(z)}</button>`).join("")}</div>
     </div>`;
     el.querySelectorAll(".zips button").forEach((b) => b.addEventListener("click", () => showZip(b.dataset.zip)));
   }
@@ -357,14 +392,21 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     });
   }
 
+  // z: a 5-digit ZIP (all of its pieces) or one piece id ("42223-TN")
   function showZip(z) {
-    const f = zipIndex.get(z);
-    if (!f) { $("ziphint").textContent = `${z} isn't a populated ZIP area in the 50 states. Try a nearby residential ZIP.`; return; }
-    pinnedZip = z;
-    zipFilter = ["==", ["get", "zcta"], z]; map.setFilter("zd-zip-line", zipFilter); refreshDetail();
-    $("ziphint").textContent = `${z} · ${fmt(f.properties.pop)} people · district ${f.properties["d_" + S]}`;
+    const ids = zipIndex.has(z) ? [z] : zipParts.get(z) ?? [];
+    if (!ids.length) { $("ziphint").textContent = `${z} isn't a populated ZIP area in the 50 states. Try a nearby residential ZIP.`; return; }
+    const fs = ids.map((id) => zipIndex.get(id)).sort((a, b) => b.properties.pop - a.properties.pop);
+    const f = fs[0];
+    pinnedZip = f.properties.zcta;
+    zipFilter = ["in", ["get", "zcta"], ["literal", ids]]; map.setFilter("zd-zip-line", zipFilter); refreshDetail();
+    const all = zipParts.get(zipOf(z)) ?? ids;
+    $("ziphint").textContent = all.length > 1 && ids.length > 1
+      ? `${zipOf(z)} is split by a state line: ` + fs.map((x) => `${x.properties.zcta.slice(6)} part, ${fmt(x.properties.pop)} people → ${x.properties["d_" + S]}`).join(" · ")
+      : `${zipLabel(f.properties.zcta)} · ${fmt(f.properties.pop)} people · district ${f.properties["d_" + S]}`;
     select(f.properties["d_" + S], false);
-    map.fitBounds(bboxOf(f.geometry), { padding: 120, maxZoom: 11, duration: 700 });
+    const b = fs.map((x) => bboxOf(x.geometry)).reduce((a, x) => [Math.min(a[0], x[0]), Math.min(a[1], x[1]), Math.max(a[2], x[2]), Math.max(a[3], x[3])]);
+    map.fitBounds(b, { padding: 120, maxZoom: 11, duration: 700 });
   }
 
   // ---- full-resolution state files, fetched on demand when zoomed in ----
@@ -403,6 +445,121 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     map.setFilter("zip-line", on ? ["all", zipFilter, ["!", ["in", ["get", "st"], loaded]]] : zipFilter);
   }
 
+  // ---- Alaska / Hawaii insets: two small non-interactive maps drawn into empty space below the Southwest, like a printed
+  // reference map (no frames). Each sits in a fixed lon/lat "slot" of the main map, so it pans and zooms with the map.
+  // They show only at (or near) the national view and when the main map isn't already showing that state.
+  // what each inset shows (mainland Alaska with most of the Aleutians; the main Hawaiian islands)
+  const INSET_FIT = { ak: [[-172, 51.5], [-130, 71.4]], hi: [[-160.6, 18.8], [-154.7, 22.3]] };
+  // fitBounds is approximate on the globe at low zoom, so fit by measuring the projected outline and correcting the zoom
+  const INSET_PTS = {}; // sampled outline points of each state's land, filled in buildInsets
+  function fitInset(m, [[w0, s0], [e0, n0]], W, H, pts) {
+    // start from the same camera every time (no drift), then alternately re-centre on the shape and correct the zoom
+    m.jumpTo({ center: [(w0 + e0) / 2, (s0 + n0) / 2], zoom: Math.log2(360 / (e0 - w0)) + Math.log2(W / 512) });
+    for (let k = 0; k < 5; k++) {
+      const ps = pts.map((p) => m.project(p)), xs = ps.map((p) => p.x), ys = ps.map((p) => p.y);
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      m.jumpTo({ center: m.unproject([(x0 + x1) / 2, (y0 + y1) / 2]), zoom: m.getZoom() + Math.log2(Math.min(W / (x1 - x0), H / (y1 - y0))) });
+    }
+    // sit the shape on the bottom edge of its box (the line through the southern tip of Texas)
+    const maxY = Math.max(...pts.map((p) => m.project(p).y));
+    m.jumpTo({ center: m.unproject([W / 2, H / 2 - (H - maxY)]) });
+  }
+  // Per projection: on the flat (Mercator) map the gap below California is shallower, so the insets are smaller.
+  const LAYOUTS = {
+    globe: { ak: { x0: 0.02, x1: 0.25, h: 0.3 }, hi: { x0: 0.235, x1: 0.37, h: 0.13 } },
+    mercator: { ak: { x0: 0, x1: 0.2, h: 0.2 }, hi: { x0: 0.215, x1: 0.34, h: 0.11 } },
+  };
+  const L48 = [[-124.8, 24.4], [-66.9, 49.4]], TX_TIP = [-97.4, 25.84];
+  const L48_PTS = []; for (let i = 0; i <= 12; i++) { const x = L48[0][0] + ((L48[1][0] - L48[0][0]) * i) / 12, y = L48[0][1] + ((L48[1][1] - L48[0][1]) * i) / 12; L48_PTS.push([x, L48[0][1]], [x, L48[1][1]], [L48[0][0], y], [L48[1][0], y]); }
+  function l48Frame() {
+    const ps = L48_PTS.map((p) => map.project(p)), xs = ps.map((p) => p.x), ys = ps.map((p) => p.y);
+    return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), base: map.project(TX_TIP).y };
+  }
+  let NAT = null, measuring = false;
+  function nationalCamera() {
+    if (NAT) return NAT;
+    measuring = true; // the jumps below fire "move"; updateInsets must ignore them
+    const keep = { center: map.getCenter(), zoom: map.getZoom() };
+    // room for the buttons along the top (PT) and a margin elsewhere
+    const W = map.getContainer().clientWidth, H = map.getContainer().clientHeight;
+    const PX = W < 500 ? 14 : 36, PT = W < 500 ? 60 : 72, PB = W < 500 ? 24 : 40;
+    map.jumpTo({ center: [-96, 37], zoom: 3 });
+    for (let k = 0; k < 4; k++) {
+      const f = l48Frame();
+      // move the frame's centre to the centre of the free area (which sits lower than the canvas centre when PT > PB)
+      const c = map.unproject([(f.x0 + f.x1) / 2, (f.y0 + f.y1) / 2 - (PT - PB) / 2]);
+      map.jumpTo({ center: c, zoom: map.getZoom() + Math.log2(Math.min((W - 2 * PX) / (f.x1 - f.x0), (H - PT - PB) / (f.y1 - f.y0))) });
+    }
+    NAT = { center: map.getCenter(), zoom: map.getZoom() };
+    map.jumpTo(keep);
+    measuring = false;
+    return NAT;
+  }
+  // Click a district to select it (the main map flies there); Enter zooms the main map to the state.
+  const INSETS = {};
+  const distOf = (st) => ({ type: "FeatureCollection", features: distFC[S].features.filter((f) => f.properties["d_" + S].startsWith(st + "-")) });
+  function buildInsets(landFC) {
+    for (const [key, st] of [["ak", "AK"], ["hi", "HI"]]) {
+      const el = $("inset-" + key);
+      const m = new maplibregl.Map({
+        container: el.querySelector(".inset-map"), interactive: false, attributionControl: false, fadeDuration: 0,
+        style: { version: 8, projection: { type: PROJ }, sources: {}, layers: [] }, // transparent: the main map shows through
+        bounds: VIEWS[key], fitBoundsOptions: { padding: 0 },
+      });
+      const inset = (INSETS[key] = { m, st, loaded: false });
+      // outline points for fitting (Alaska: only the western hemisphere, so islands past 180° don't stretch the fit)
+      // Alaska: western hemisphere only (islands past 180° would stretch the fit); Hawaii: the eight main islands
+      // (the uninhabited Northwestern islands reach 178°W and would shrink the main islands to dots)
+      const keep = st === "HI" ? (c) => c[0] > -160.6 : (c) => c[0] < 0;
+      const pts = []; const walk = (c) => { if (typeof c[0] === "number") { if (keep(c)) pts.push(c); } else c.forEach(walk); };
+      for (const f of landFC.features) if (f.properties.STUSPS === st) walk(f.geometry.coordinates);
+      INSET_PTS[key] = pts.filter((_, i) => i % 4 === 0);
+      m.once("load", () => {
+        m.addSource("land", { type: "geojson", data: { type: "FeatureCollection", features: landFC.features.filter((f) => f.properties.STUSPS === st) } });
+        m.addSource("dist", { type: "geojson", data: distOf(st) });
+        m.addLayer({ id: "land", type: "fill", source: "land", paint: { "fill-color": TH.land } });
+        m.addLayer({ id: "dist-fill", type: "fill", source: "dist", paint: { "fill-color": fillExpr(), "fill-opacity": 0.78 } });
+        m.addLayer({ id: "dist-line", type: "line", source: "dist", paint: { "line-color": TH.border, "line-width": 0.7 } });
+        m.addLayer({ id: "sel-line", type: "line", source: "dist", filter: selFilter, paint: { "line-color": TH.sel, "line-width": 2 } });
+        inset.loaded = true; styleInsets();
+      });
+      el.addEventListener("click", (e) => {
+        const r = m.getCanvas().getBoundingClientRect();
+        const f = inset.loaded && m.queryRenderedFeatures([e.clientX - r.left, e.clientY - r.top], { layers: ["dist-fill"] })[0];
+        if (f) { pinnedZip = null; zipFilter = NONE; map.setFilter("zd-zip-line", NONE); select(f.properties["d_" + S]); }
+        else map.fitBounds(VIEWS[key], { padding: 20, duration: 700 });
+      });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); map.fitBounds(VIEWS[key], { padding: 20, duration: 700 }); } });
+    }
+  }
+  function styleInsets(newMode) {
+    for (const { m, st, loaded } of Object.values(INSETS)) {
+      if (!loaded) continue;
+      m.setPaintProperty("land", "fill-color", TH.land);
+      m.setPaintProperty("dist-fill", "fill-color", fillExpr());
+      m.setPaintProperty("dist-line", "line-color", TH.border);
+      m.setPaintProperty("sel-line", "line-color", TH.sel);
+      if (newMode) m.getSource("dist").setData(distOf(st));
+    }
+  }
+  function updateInsets() {
+    const el = $("insets"); if (!el || measuring) return;
+    const natZoom = (NAT ?? nationalCamera()).zoom;
+    // hide once the real state is on screen (its centre is in view), so it never shows twice
+    const W = map.getContainer().clientWidth, H = map.getContainer().clientHeight;
+    const centreIn = (v) => { const p = map.project([(v[0][0] + v[1][0]) / 2, (v[0][1] + v[1][1]) / 2]); return p.x > 0 && p.x < W && p.y > 0 && p.y < H; };
+    el.hidden = map.getZoom() > natZoom + 0.75 || centreIn(VIEWS.ak) || centreIn(VIEWS.hi);
+    if (el.hidden) return;
+    const fr = l48Frame(), FW = fr.x1 - fr.x0, FH = fr.base - fr.y0;
+    for (const [key, ins] of Object.entries(INSETS)) {
+      const L = LAYOUTS[PROJ][key], box = $("inset-" + key);
+      const left = fr.x0 + L.x0 * FW, w = Math.round((L.x1 - L.x0) * FW), h = Math.round(L.h * FH);
+      box.style.left = Math.round(left) + "px"; box.style.top = Math.round(fr.base - h) + "px";
+      if (box.offsetWidth !== w || box.offsetHeight !== h) { box.style.width = w + "px"; box.style.height = h + "px"; ins.m.resize(); }
+      fitInset(ins.m, INSET_FIT[key], w, h, INSET_PTS[key]);
+    }
+  }
+
   function updateLabels() {
     markers.forEach((m) => m.remove()); markers = [];
     if (map.getZoom() < 5.2) return;
@@ -421,7 +578,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     for (const L of ["zcta-fill", "zd-fill"]) map.on("mousemove", L, (e) => {
       const p = e.features[0].properties; const d = p["d_" + S]; const [dp, dev] = meta.results[S].districts[d];
       map.getCanvas().style.cursor = "pointer";
-      tip.innerHTML = `<div><b>${p.zcta}</b> · ${fmt(p.pop)} people</div><div class="t2">District <b>${d}</b> · ${fmt(dp)} <span class="pill ${devClass(dev)}">${devText(dev)}</span></div>`;
+      tip.innerHTML = `<div><b>${zipLabel(p.zcta)}</b> · ${fmt(p.pop)} people</div><div class="t2">District <b>${d}</b> · ${fmt(dp)} <span class="pill ${devClass(dev)}">${devText(dev)}</span></div>`;
       tip.style.display = "block";
       const w = map.getContainer().clientWidth; const x = e.point.x + 14;
       tip.style.left = (x + 230 > w ? e.point.x - 240 : x) + "px"; tip.style.top = e.point.y + 14 + "px";
@@ -429,18 +586,32 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     for (const L of ["zcta-fill", "zd-fill"]) map.on("mouseleave", L, () => { tip.style.display = "none"; map.getCanvas().style.cursor = ""; });
     for (const L of ["zcta-fill", "zd-fill"]) map.on("click", L, (e) => { const p = e.features[0].properties; pinnedZip = null; zipFilter = NONE; map.setFilter("zd-zip-line", NONE); select(p["d_" + S], false); });
     map.on("moveend", () => { updateLabels(); loadDetail(); refreshDetail(); });
+    map.on("move", updateInsets); map.on("resize", () => { NAT = null; updateInsets(); });
+    map.jumpTo(nationalCamera()); updateInsets();
     map.on("zoomend", refreshDetail);
     loadDetail(); refreshDetail();
   }
 
-  // legend collapse, remembered in localStorage (collapsed by default on phones)
+  // legend collapse, remembered in localStorage (collapsed by default, so it doesn't cover the East Coast at the national view)
   $("legend-toggle").addEventListener("click", () => {
     const lg = $("legend"); const c = lg.classList.toggle("collapsed");
     $("legend-toggle").setAttribute("aria-expanded", String(!c));
     try { localStorage.setItem("zd-legend", c ? "0" : "1"); } catch (e) {}
   });
-  try { if (localStorage.getItem("zd-legend") === "0" || (window.innerWidth < 760 && localStorage.getItem("zd-legend") !== "1")) { $("legend").classList.add("collapsed"); $("legend-toggle").setAttribute("aria-expanded", "false"); } } catch (e) {}
-  document.querySelectorAll(".jump button").forEach((b) => b.addEventListener("click", () => map.fitBounds(VIEWS[b.dataset.view], { padding: 20, duration: 700 })));
+  try { if (localStorage.getItem("zd-legend") !== "1") { $("legend").classList.add("collapsed"); $("legend-toggle").setAttribute("aria-expanded", "false"); } } catch (e) {}
+  function setProjection(p) {
+    PROJ = p;
+    try { localStorage.setItem("zd-proj", p); } catch (e) {}
+    document.querySelectorAll(".proj button").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.proj === p)));
+    const wasNational = NAT && Math.abs(map.getZoom() - NAT.zoom) < 0.3;
+    map.setProjection({ type: p });
+    for (const { m } of Object.values(INSETS)) m.setProjection({ type: p });
+    NAT = null;
+    if (wasNational) map.jumpTo(nationalCamera());
+    updateInsets();
+  }
+  document.querySelectorAll(".proj button").forEach((b) => { b.setAttribute("aria-checked", String(b.dataset.proj === PROJ)); b.addEventListener("click", () => setProjection(b.dataset.proj)); });
+  document.querySelectorAll(".jump:not(.proj) button").forEach((b) => b.addEventListener("click", () => b.dataset.view === "l48" ? map.easeTo({ ...nationalCamera(), duration: 700 }) : map.fitBounds(VIEWS[b.dataset.view], { padding: 20, duration: 700 })));
   $("zipform").addEventListener("submit", (e) => { e.preventDefault(); const z = $("zipq").value.trim().padStart(5, "0"); if (meta) showZip(z); });
   window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (meta && h !== S && meta.strategies[h]) setStrategy(h); });
   load().catch((err) => { const l = $("loading"); if (l) l.textContent = "The map data didn't load (" + err.message + "). Reload the page to try again."; console.error(err); });

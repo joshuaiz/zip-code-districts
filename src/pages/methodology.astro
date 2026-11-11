@@ -2,36 +2,32 @@
 // /methodology: how the districts are drawn. The text is src/content/methodology.md; its section headings are
 // raw <h2 id>/<h3 id> so the map can deep-link to them (/methodology#mode-<id>, from "How this mode works →").
 import Base from "../layouts/Base.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import SiteFooter from "../components/SiteFooter.astro";
 import { Content, frontmatter } from "../content/methodology.md";
 
-const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
 ---
 <Base title={frontmatter.title} description={frontmatter.description}>
   <div class="min-h-full bg-[var(--ground)] font-sans text-[var(--ink)]">
-    <header class="sticky top-0 z-10 border-b border-[var(--rule)] bg-[var(--panel)]/95 backdrop-blur">
-      <nav class="mx-auto flex h-12 max-w-3xl items-center justify-between gap-4 px-4 text-sm">
-        <a href={base} class="font-semibold text-[var(--accent)] no-underline hover:underline">← Back to the map</a>
-        <span class="text-[var(--muted)]">Methodology</span>
-      </nav>
-    </header>
+    <SiteHeader current="methodology" />
     <article
       class="prose dark:prose-invert prose-a:text-[var(--accent)] prose-a:decoration-[color-mix(in_srgb,var(--accent)_40%,transparent)] prose-a:underline-offset-2 hover:prose-a:decoration-[var(--accent)] prose-h1:tracking-tight prose-table:text-sm max-w-3xl mx-auto px-4 py-8"
     >
       <Content />
     </article>
+    <SiteFooter />
   </div>
 </Base>
 
 <style is:global>
-  /* Base sets html, body { height: 100% } for the full-screen map. Here the page scrolls, and a sticky bar only
-     sticks while its parent box is on screen, so let body grow with the content. */
+  /* Base sets html, body { height: 100% } for the full-screen map. Here the page scrolls. */
   body {
     height: auto;
     min-height: 100%;
   }
-  /* deep links (#mode-splitline etc.) land below the sticky bar instead of under it */
+  /* a little air above deep-linked headings (#mode-splitline etc.) */
   .prose :is(h2, h3)[id] {
-    scroll-margin-top: 4.5rem;
+    scroll-margin-top: 1.25rem;
   }
   /* wide tables scroll sideways on narrow screens instead of widening the page */
   .prose table {

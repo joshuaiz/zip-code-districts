@@ -1,0 +1,121 @@
+---
+// Site-wide footer (scrolling pages only; the full-screen map page has no footer).
+import SignupForm from "./SignupForm.astro";
+interface Props {
+  signup?: boolean; // false on the home page, which has its own signup section
+}
+const { signup = true } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
+const REPO = "https://github.com/joshuaiz/zip-code-districts";
+---
+<footer class="site-footer">
+  <div class:list={["sf-inner", { "no-signup": !signup }]}>
+    <div class="about">
+      <a class="brand" href={base}>ZIP Code Districts</a>
+      <p>U.S. House districts drawn from whole ZIP codes by one fixed rule, with no voter or party data. An independent, open-source project.</p>
+    </div>
+    <nav aria-label="Footer">
+      <div>
+        <p class="h">Explore</p>
+        <ul>
+          <li><a href={`${base}map`}>Map</a></li>
+          <li><a href={`${base}methodology`}>Methodology</a></li>
+          <li><a href={`${base}methodology#outcomes`}>Partisan outcomes</a></li>
+          <li><a href={`${base}methodology#limitations`}>Limitations</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="h">Project</p>
+        <ul>
+          <li><a href={REPO} rel="noopener">Source code</a></li>
+          <li><a href={`${REPO}/tree/main/data`} rel="noopener">Data files</a></li>
+          <li><a href={`${REPO}/issues`} rel="noopener">Report an issue</a></li>
+        </ul>
+      </div>
+    </nav>
+    {signup && <div class="su"><SignupForm compact id="footer-signup" /></div>}
+  </div>
+  <div class="credits">
+    <p>Boundaries and population: U.S. Census Bureau, 2020 Census. Election results: The New York Times, used for non-commercial analysis with credit. Not affiliated with the U.S. Postal Service or the Census Bureau.</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    background: var(--panel);
+    border-top: 1px solid var(--rule);
+    color: var(--ink);
+    font: 15px/1.5 var(--font-body);
+  }
+  .sf-inner {
+    max-width: var(--page-w);
+    margin: 0 auto;
+    padding: 40px 20px 28px;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1.3fr;
+    gap: 40px;
+  }
+  .brand {
+    font: 800 17px/1.2 var(--font-display);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .about p {
+    margin: 10px 0 0;
+    color: var(--muted);
+    max-width: 34ch;
+  }
+  nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .h {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+  }
+  nav a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  nav a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .credits {
+    border-top: 1px solid var(--rule);
+  }
+  .credits p {
+    max-width: var(--page-w);
+    margin: 0 auto;
+    padding: 16px 20px 24px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .sf-inner.no-signup {
+    grid-template-columns: 1.2fr 2.5fr;
+  }
+  @media (max-width: 900px) {
+    .sf-inner, .sf-inner.no-signup { grid-template-columns: 1fr 1fr; }
+    .su { grid-column: 1 / -1; }
+  }
+  @media (max-width: 560px) {
+    .sf-inner, .sf-inner.no-signup { grid-template-columns: 1fr; gap: 28px; }
+  }
+</style>

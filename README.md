@@ -20,15 +20,15 @@ non-partisan districting modes, listed from most to least defensible as a neutra
 
 | Rank | Group | Mode | Mean dev | Max dev | Within ±1% | Counties split | Cut edges |
 |---|---|---|---|---|---|---|---|
-| 1 | Fixed rule | Shortest splitline | 0.24% | 1.65% | 413 / 429 | 1,014 | 16,975 |
-| 2 | Fixed rule | Splitline + counties | 0.41% | 2.71% | 387 / 429 | 644 | 15,792 |
-| 3 | Fixed rule | Counties first | 0.30% | 3.36% | 415 / 429 | 703 | 17,532 |
-| 4 | Start point | State center | 0.22% | 3.36% | 416 / 429 | 1,119 | 17,747 |
-| 5 | Start point | NW corner | 0.22% | 1.65% | 418 / 429 | 1,060 | 17,352 |
-| 6 | Start point | NE corner | 0.22% | 1.70% | 419 / 429 | 1,091 | 17,524 |
-| 7 | Start point | ZIP number | 0.20% | 1.80% | 424 / 429 | 1,146 | 18,005 |
-| 8 | Pick by rule | Best score | 0.38% | 2.00% | 395 / 429 | 722 | 14,459 |
-| 9 | Pick by rule | Random draw | 0.26% | 2.00% | 414 / 429 | 1,071 | 17,202 |
+| 1 | Fixed rule | Shortest splitline | 0.22% | 1.65% | 420 / 429 | 1,007 | 16,845 |
+| 2 | Fixed rule | Splitline + counties | 0.38% | 2.71% | 393 / 429 | 615 | 16,030 |
+| 3 | Fixed rule | Counties first | 0.30% | 3.36% | 414 / 429 | 670 | 17,098 |
+| 4 | Start point | State center | 0.20% | 3.36% | 418 / 429 | 1,121 | 17,609 |
+| 5 | Start point | NW corner | 0.22% | 1.65% | 416 / 429 | 1,114 | 17,624 |
+| 6 | Start point | NE corner | 0.26% | 1.76% | 414 / 429 | 1,106 | 17,472 |
+| 7 | Start point | ZIP number | 0.20% | 1.89% | 415 / 429 | 1,122 | 18,006 |
+| 8 | Pick by rule | Best score | 0.35% | 2.00% | 398 / 429 | 735 | 14,464 |
+| 9 | Pick by rule | Random draw | 0.26% | 2.00% | 413 / 429 | 1,088 | 17,117 |
 
 Rank = fewest choices a person could tune (the order of `STRATEGY_INFO`, the map's button order and
 the `pickBest` tie-break). The reasoning is in `src/content/methodology.md` → "Ranking the modes";
@@ -65,6 +65,7 @@ public/
   data/land.topo.json           Census state boundaries (grey base layer: shows unpopulated land with no ZIP area)
   data/modes.json               per-ZIP district number + colour for every mode, attached to features in the browser
   data/districts.json           per-district population, deviation, ZCTA count + summaries (45 KB)
+  img/home-map-splitline.svg    static home-page map (pipeline/07_home_map.mjs)
 src/
   layouts/Base.astro            <html>/<head>: meta, title, Google Fonts (Public Sans, IBM Plex Mono), global.css
   components/ZipDistrictMap.astro  the map: sidebar + MapLibre map markup and a bundled <script>
@@ -72,8 +73,12 @@ src/
   styles/tokens.css             shared :root colour/font tokens + dark mode, loaded by Base
   styles/global.css             Tailwind v4 entry + typography plugin + font theme
   content/methodology.md        methodology text; raw <h2 id>/<h3 id> anchors (#mode-splitline … #mode-random), #rules, #ranking
-  pages/index.astro             Base + <ZipDistrictMap />
-  pages/methodology.astro       renders methodology.md with Tailwind Typography (prose)
+  pages/index.astro             home: intro, small static map (public/img), links, signup
+  pages/map.astro               SiteHeader + <ZipDistrictMap /> filling the rest of the screen (/districts redirects here)
+  pages/methodology.astro       renders methodology.md with Tailwind Typography (prose), header + footer
+  components/SiteHeader.astro   site header + main nav (height = --header-h in tokens.css)
+  components/SiteFooter.astro   site footer: nav, compact signup, data credits (scrolling pages only)
+  components/SignupForm.astro   PLACEHOLDER email / AT Protocol handle signup: validates, sends nothing yet
   lib/districter.js             the districting engine: dependency-free ES module, runs in Node or the browser
   lib/themes.js                 the 11 map colour themes (5 fills each + ground, no-ZIP land, border, state, selection colours)
 data/
@@ -125,9 +130,11 @@ Options: `{ anneal: false }` skips the refinement phase (much faster, ~1–3% wo
 
 ## Method
 
-1. **Building blocks**: 33,585 ZCTAs in the 50 states with 2020 DHC population (Table P1). A ZCTA
-   that crosses a state line (137 of them, 556k people) is assigned whole to the state containing most
-   of its area. DC and territories are excluded (no voting seat).
+1. **Building blocks**: 33,585 ZCTAs in the 50 states with 2020 DHC population (Table P1). State lines
+   take priority: a ZCTA that crosses a state line (137 of them, 556k people) is split at the line into
+   one piece per state (277 pieces, ids like `42223-TN`), each with the Census "ZCTA (or part) within
+   state" population (`data/zcta_state_parts.csv`). Every other ZCTA stays whole: 33,725 blocks in all.
+   DC and territories are excluded (no voting seat).
 2. **Targets**: 2020 apportionment seats. The national average is 761,169 per seat, but each
    district targets *its state's* population ÷ seats (Montana 542k … Delaware 990k).
 3. **Adjacency**: shared boundary (25 m tolerance); plus ZCTAs facing each other across an
@@ -155,8 +162,13 @@ Options: `{ anneal: false }` skips the refinement phase (much faster, ~1–3% wo
 - **2020 basis**: rebuild with new data after the 2030 census (the pipeline is reusable).
 
 ## Rebuild
+Population comes from `data/zcta_pop.csv` (DHC P1 by ZCTA) and `data/zcta_state_parts.csv` (DHC P1 by
+"ZCTA (or part)" within state, for the ZCTAs a state line crosses; Census API geography
+`zip code tabulation area (or part)`, which needs a free API key). Boundary files go in `data/raw/census/`
+(git-ignored): `cb_2020_us_zcta520_500k`, `cb_2020_us_state_500k`, `cb_2020_us_county_500k`.
 ```
-python3 pipeline/01_prepare.py RAW_DIR data        # needs geopandas; RAW_DIR has zcta/, state/, pop/
+python3 pipeline/01_prepare.py RAW_DIR data        # needs geopandas; RAW_DIR has zcta/z.shp, state/s.shp
+python3 pipeline/01b_counties.py RAW_DIR data      # RAW_DIR/county/c.shp; adds a county to every block
 node    pipeline/02_run.mjs data/zcta_graph.json data
 python3 pipeline/03_geometry.py data
 # then the mapshaper commands in pipeline/build_geometry.sh, then:
@@ -179,6 +191,9 @@ node pipeline/03c_patch_topo.mjs <mode> best      # merges district outlines fro
 node pipeline/04_meta.mjs data/assignments.json public/data/districts.json && node pipeline/04b_tables.mjs
 python3 pipeline/05_verify.py data/zcta_graph.json data/assignments.json
 ```
+
+**Home-page map.** `node pipeline/07_home_map.mjs [mode]` writes `public/img/home-map-<mode>.svg`, the small static map
+on the home page (default `splitline`, Accessible theme colours). Rerun it after changing that mode's districts.
 
 **Partisan outcomes (measured after drawing, never used to draw).** Scores every mode against the 2024
 presidential vote. Put the NYT precinct file (`precincts-with-results.topojson`, from

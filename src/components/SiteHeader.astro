@@ -1,0 +1,133 @@
+---
+// Site-wide header: brand, main nav and a "Get updates" link to the signup on the home page.
+// Height is --header-h (tokens.css); the map page sizes its full-screen app from it.
+interface Props {
+  current?: "home" | "map" | "methodology";
+}
+const { current } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
+const REPO = "https://github.com/joshuaiz/zip-code-districts";
+const links = [
+  { id: "map", href: `${base}map`, label: "Map" },
+  { id: "methodology", href: `${base}methodology`, label: "Methodology" },
+  { id: "code", href: REPO, label: "Code & data", external: true },
+];
+---
+<header class="site-header">
+  <div class="sh-inner">
+    <a class="brand" href={base} aria-current={current === "home" ? "page" : undefined}>
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 3h10v7H8v5H3z" fill="#77aadd" />
+        <path d="M13 3h8v9h-6v-2h-2z" fill="#ee8866" />
+        <path d="M8 10h5v2h2v9H3v-6h5z" fill="#eedd88" />
+        <path d="M15 12h6v9h-6z" fill="#44bb99" />
+        <path d="M3 3h18v18H3z" fill="none" stroke="currentColor" stroke-width="1.5" />
+      </svg>
+      <span>ZIP Code Districts</span>
+    </a>
+    <nav aria-label="Main">
+      <ul>
+        {links.map((l) => (
+          <li class={l.id === "code" ? "hide-sm" : undefined}>
+            <a href={l.href} aria-current={current === l.id ? "page" : undefined} {...(l.external ? { rel: "noopener" } : {})}>{l.label}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    <a class="sh-cta" href={`${base}#updates`}>Get updates</a>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    height: var(--header-h);
+    flex: none;
+    background: var(--panel);
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink);
+    font: 500 15px/1 var(--font-body);
+  }
+  .sh-inner {
+    height: 100%;
+    max-width: var(--page-w);
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink);
+    text-decoration: none;
+    font: 800 17px/1 var(--font-display);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .mark {
+    width: 24px;
+    height: 24px;
+    flex: none;
+  }
+  nav {
+    margin-right: auto;
+  }
+  ul {
+    display: flex;
+    gap: 4px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  nav a {
+    display: block;
+    padding: 9px 12px;
+    border-radius: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  nav a:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+  }
+  nav a[aria-current="page"] {
+    color: var(--ink);
+    box-shadow: inset 0 -2px 0 var(--accent);
+    border-radius: 0;
+  }
+  .sh-cta {
+    padding: 9px 14px;
+    border-radius: 6px;
+    background: var(--ink);
+    color: var(--panel);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .sh-cta:hover {
+    background: var(--accent);
+  }
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  @media (max-width: 720px) {
+    .sh-inner { gap: 12px; padding: 0 14px; }
+    .sh-cta { display: none; }
+    .hide-sm { display: none; }
+    nav a { padding: 9px 8px; }
+  }
+  @media (max-width: 420px) {
+    .sh-inner { gap: 8px; padding: 0 12px; }
+    .brand { font-size: 15px; gap: 8px; }
+    .mark { width: 20px; height: 20px; }
+    ul { gap: 0; }
+    nav a { padding: 9px 6px; font-size: 14px; }
+  }
+  @media (max-width: 350px) {
+    .brand span { display: none; }
+  }
+</style>

@@ -25,16 +25,16 @@ The map offers nine modes, each a different way to produce a first version of th
 
 **Population.** Each ZIP's population comes from the 2020 Census Demographic and Housing Characteristics file, table P1 (total population). That's the same census that set each state's number of seats.
 
-**ZIPs that cross state lines.** 137 ZIP areas, home to 556,203 people, straddle a state line. Each one goes, whole, to the state that contains most of its land. ZIPs are never split.
+**ZIPs that cross state lines.** 137 ZIP areas, home to 556,203 people, straddle a state line. State lines come first: a district can't cross one, so each of these ZIPs is split at the state line into one piece per state (277 pieces, for example 42223 becomes a Kentucky piece and a Tennessee piece). Each piece's population is the Census count for that ZIP "(or part)" within that state, from the same 2020 table. The pieces then work like any other ZIP. Every other ZIP stays whole, so the algorithm works with 33,725 building blocks: 33,448 whole ZIPs and 277 pieces. Pieces with no residents still go to a district in their own state, so every bit of a state's ZIP land is covered.
 
-**Counties.** Each ZIP is assigned to the county that holds most of its land, using the 2020 county boundary file. That assignment drives the Counties first mode and the "counties split" statistic.
+**Counties.** Each ZIP (or piece) is assigned to the county in its state that holds most of its land, using the 2020 county boundary file. That assignment drives the Counties first mode and the "counties split" statistic.
 
 **Who is left out.** The District of Columbia and the territories have no voting House seat, so they are excluded.
 
 **Neighbors.** Districts must be connected, so the algorithm needs to know which ZIPs are neighbors. Two ZIPs are neighbors when:
 
-1. **Their boundaries touch**, allowing 25 meters for small gaps in the boundary file (87,928 pairs).
-2. **They face each other across empty land.** ZIP areas don't cover unpopulated land: national forests, deserts, parks, military ranges. ZIPs that border the same uncovered area (at least 1 km²) and lie within 25 km of each other are treated as neighbors (9,455 pairs). A district may legally span empty land, and without these links places like El Paso would be attached to the rest of Texas by only a thread.
+1. **Their boundaries touch**, allowing 25 meters for small gaps in the boundary file (88,190 pairs).
+2. **They face each other across empty land.** ZIP areas don't cover unpopulated land: national forests, deserts, parks, military ranges. ZIPs that border the same uncovered area (at least 1 km²) and lie within 25 km of each other are treated as neighbors (9,432 pairs). A district may legally span empty land, and without these links places like El Paso would be attached to the rest of Texas by only a thread.
 3. **Water is the only link.** Islands are connected to the nearest ZIP in the same state (140 links).
 
 **Map colors.** District colors carry no meaning; they only tell neighbors apart. Every map uses exactly five colors, each on about the same number of districts (87), and districts whose borders touch get different colors, including across state lines. Four colors are always enough in theory, and reference maps conventionally use a handful of soft colors so borders and labels stay readable. In a few modes, New York City districts interlock so tightly that seven or eight of them all touch one another. There, at most four pairs that touch only through one or two ZIP codes share a color, and the district border still divides them. The map offers eleven color themes: Accessible (the default), Standard, Factbook, Atlas, Terrain, Greens, Bold, Poster, Graphite, Lunar and Blueprint. Accessible uses Paul Tol's "light" palette and Bold uses the Okabe–Ito palette, both designed to stay distinguishable with color-vision deficiency.
@@ -45,7 +45,7 @@ The map offers nine modes, each a different way to produce a first version of th
 
 Political scientists John Curiel and Tyler Steelman have studied what happens when district lines cut through ZIP codes. Current congressional districts split the ZIP codes of over 100 million Americans. In survey data from 2008 to 2016, people living in split ZIP codes were less likely to recognize or contact their representative, and felt more distant from them ideologically. Most people look up their representative by ZIP code, and several members of Congress ignore mail from outside their district. A follow-up study found that people in split ZIP codes were also less likely to know the race of their representative, which weakens the purpose of districts drawn under the Voting Rights Act. Curiel and Steelman proposed a zero-tolerance standard for ZIP splits. Their North Carolina simulations showed that whole-ZIP maps are feasible and substantially reduce partisan bias.
 
-This project builds on that idea in a different way: a fixed, politics-blind rule applied to every state, with the code and outcomes published. In every mode here, each ZIP belongs to exactly one district, so a ZIP code always tells you who your representative is.
+This project builds on that idea in a different way: a fixed, politics-blind rule applied to every state, with the code and outcomes published. In every mode here, each ZIP belongs to exactly one district, so a ZIP code tells you who your representative is. The only exception is the 137 ZIPs a state line runs through, where the ZIP and your state together tell you.
 
 <h2 id="rules">The rules</h2>
 
@@ -55,7 +55,7 @@ This project builds on that idea in a different way: a fixed, politics-blind rul
 
 - **Each state keeps its 2020 seat count.** Districts never cross state lines.
 - **Equal population within each state.** The national average is 761,169 people per seat. Districts can't cross state lines, though, so each district aims for its own state's ideal: the state's population divided by its seats. That's about 542,000 in Montana and about 990,000 for Delaware's single seat.
-- **Whole ZIPs only.** A district is a set of complete ZIP areas.
+- **Whole ZIPs, except at state lines.** A district is a set of complete ZIP areas. State lines take priority: a ZIP that a state line runs through is split at that line, and nowhere else.
 - **Contiguity.** Every district is one connected piece, using the neighbor rules above.
 - **No political inputs.** Only geography, population and county lines.
 
@@ -63,7 +63,7 @@ Six states have one seat (Alaska, Delaware, North Dakota, South Dakota, Vermont,
 
 <h3 id="recipe">The complete recipe</h3>
 
-1. **Building blocks.** The ZIP Code Tabulation Areas published with the census, frozen at that moment (2020: 33,585 in the 50 states). ZIP codes the Postal Service adds or retires later are ignored until the next census, so nobody can move a district by lobbying for a new ZIP code.
+1. **Building blocks.** The ZIP Code Tabulation Areas published with the census, frozen at that moment (2020: 33,585 in the 50 states), with the 137 that cross a state line split at it. ZIP codes the Postal Service adds or retires later are ignored until the next census, so nobody can move a district by lobbying for a new ZIP code.
 2. **Population.** Total population per ZIP from the same census (2020 DHC, table P1).
 3. **Seats and target.** Each state's apportioned seats. Target = the state's population ÷ its seats. Deviation should be as small as whole ZIPs allow (currently about ±1–2%). Best score treats ±2% as its eligibility cutoff.
 4. **Neighbors.** Boundaries touching within 25 m; ZIPs facing each other across at least 1 km² of uncovered land within 25 km; islands linked to the nearest ZIP in the state. See [the building blocks](#building-blocks).
@@ -140,7 +140,7 @@ Warren D. Smith proposed this rule specifically to take choice out of redistrict
 4. Repeat inside each piece. Inside a county big enough for several districts (Cook County, Los Angeles County), every ZIP is in the same county, so the cut is a plain splitline.
 5. Then the shared finish, with the county-aware settings borrowed from Counties first: cutting along a county line costs 15% of cutting through a county, μ = 0.00003, and a state beyond ±2% gets one more pass at the normal weight.
 
-**Result:** the fewest split counties of any mode (644 nationwide) and the second smoothest borders (15,792 cut edges, behind only Best score). Iowa shows the difference: 6 split counties, versus 19 for Shortest splitline and 7 for Counties first. **Cost:** the least even population of the fixed rules: average deviation 0.41%, largest 2.71% (NY-5 in Queens, where ZIPs are dense and large), 387 of 429 districts within ±1%. **Strength:** keeps splitline's single rule while respecting the places people know. **Weakness:** one more rule (counties are the units) and the two county settings in the finish.
+**Result:** the fewest split counties of any mode (615 nationwide) and the second smoothest borders (16,030 cut edges, behind only Best score). Iowa shows the difference: 7 split counties, the same as Counties first, versus 26 for Shortest splitline. **Cost:** the least even population of the fixed rules: average deviation 0.38%, largest 2.71% (NY-5 in Queens, where ZIPs are dense and large), 393 of 429 districts within ±1%. **Strength:** keeps splitline's single rule while respecting the places people know. **Weakness:** one more rule (counties are the units) and the two county settings in the finish.
 
 <h3 id="mode-county">Counties first</h3>
 
@@ -150,7 +150,7 @@ Warren D. Smith proposed this rule specifically to take choice out of redistrict
 2. In the smoothing stage, cutting a border *along* a county line costs about 15% of what cutting *through* a county costs, and borders carry more weight overall (μ = 0.00003). So borders settle on county lines where they can.
 3. If any district in a state ends up more than ±2% from ideal, that state gets one more smoothing pass at the normal border weight. This happens in New York, where each NYC borough is a county with several districts' worth of people.
 
-**Result:** about a third fewer split counties than the start point modes (703 nationwide versus roughly 1,060–1,150), at the cost of slightly less even population. **Strength:** districts line up with places people already know. **Weakness:** county sizes vary enormously, so perfect county integrity is impossible in large states.
+**Result:** about 40% fewer split counties than the start point modes (670 nationwide versus roughly 1,100–1,120), at the cost of slightly less even population. **Strength:** districts line up with places people already know. **Weakness:** county sizes vary enormously, so perfect county integrity is impossible in large states.
 
 <h3 id="mode-center">State center</h3>
 
@@ -194,7 +194,7 @@ ZIP numbers aren't random. The first three digits identify a mail-sorting center
 3. **Winner:** the fewest cut edges, meaning the smoothest, most compact borders.
 4. **Tie-breakers:** lowest average deviation, then the ranking order. In one-seat states every mode gives the same map, so the top-ranked mode, Shortest splitline, "wins" there.
 
-The map shows which mode won each state. Nationally the winners spread across seven modes: Splitline + counties wins 24 states, Shortest splitline 13 (6 of them one-seat states), Counties first 5, State center and NW corner 3 each, NE corner and ZIP number 1 each. This mode has the fewest cut edges overall (14,459) and the third fewest split counties (722).
+The map shows which mode won each state. Nationally the winners spread across all eight other modes: Splitline + counties wins 19 states, Shortest splitline 15 (6 of them one-seat states), Random draw 6, Counties first 5, NE corner 2, and State center, NW corner and ZIP number 1 each. This mode has the fewest cut edges overall (14,464) and the third fewest split counties (735).
 
 **Why fixing the rule first matters:** if the scoring rule were chosen after looking at the maps, choosing the rule would just be a way of choosing the map.
 
@@ -238,17 +238,17 @@ Deviation is measured against each state's own ideal, over the 429 districts in 
 
 | Rank | Group | Mode | Average deviation | Largest deviation | Within ±1% | Counties split | Cut edges |
 |---|---|---|---|---|---|---|---|
-| 1 | Fixed rule | Shortest splitline | 0.24% | 1.65% | 413 | 1,014 | 16,975 |
-| 2 | Fixed rule | Splitline + counties | 0.41% | 2.71% | 387 | 644 | 15,792 |
-| 3 | Fixed rule | Counties first | 0.30% | 3.36% | 415 | 703 | 17,532 |
-| 4 | Start point | State center | 0.22% | 3.36% | 416 | 1,119 | 17,747 |
-| 5 | Start point | NW corner | 0.22% | 1.65% | 418 | 1,060 | 17,352 |
-| 6 | Start point | NE corner | 0.22% | 1.70% | 419 | 1,091 | 17,524 |
-| 7 | Start point | ZIP number | 0.20% | 1.80% | 424 | 1,146 | 18,005 |
-| 8 | Pick by rule | Best score | 0.38% | 2.00% | 395 | 722 | 14,459 |
-| 9 | Pick by rule | Random draw | 0.26% | 2.00% | 414 | 1,071 | 17,202 |
+| 1 | Fixed rule | Shortest splitline | 0.22% | 1.65% | 420 | 1,007 | 16,845 |
+| 2 | Fixed rule | Splitline + counties | 0.38% | 2.71% | 393 | 615 | 16,030 |
+| 3 | Fixed rule | Counties first | 0.30% | 3.36% | 414 | 670 | 17,098 |
+| 4 | Start point | State center | 0.20% | 3.36% | 418 | 1,121 | 17,609 |
+| 5 | Start point | NW corner | 0.22% | 1.65% | 416 | 1,114 | 17,624 |
+| 6 | Start point | NE corner | 0.26% | 1.76% | 414 | 1,106 | 17,472 |
+| 7 | Start point | ZIP number | 0.20% | 1.89% | 415 | 1,122 | 18,006 |
+| 8 | Pick by rule | Best score | 0.35% | 2.00% | 398 | 735 | 14,464 |
+| 9 | Pick by rule | Random draw | 0.26% | 2.00% | 413 | 1,088 | 17,117 |
 
-The 3.36% cases are the same district in New York, and Splitline + counties' 2.71% is also in New York (NY-5, Queens): large, dense ZIPs and island geography limit how finely population can be traded there.
+The 3.36% cases are the same district in New York (one district made of the same 17 ZIPs), and Splitline + counties' 2.71% is also in New York (NY-5, Queens): large, dense ZIPs and island geography limit how finely population can be traded there.
 
 <h2 id="outcomes">Partisan outcomes (measured after drawing)</h2>
 
@@ -260,20 +260,31 @@ Nationally, Harris won 49.15% of the two-party vote. A seat share matching that 
 
 | Rank | Mode | Harris seats | Trump seats | Efficiency gap | Median district vs. nation | Competitive seats (45–55%) | Harris seats at a 50/50 vote |
 |---|---|---|---|---|---|---|---|
-| 1 | Shortest splitline | 202 | 233 | 3.5% toward R | 1.5 pts more R | 123 | 211 |
-| 2 | Splitline + counties | 195 | 240 | 5.4% toward R | 1.6 pts more R | 118 | 205 |
-| 3 | Counties first | 194 | 241 | 5.4% toward R | 1.5 pts more R | 116 | 206 |
-| 4 | State center | 203 | 232 | 3.3% toward R | 1.6 pts more R | 116 | 208 |
-| 5 | NW corner | 197 | 238 | 4.5% toward R | 0.6 pts more R | 112 | 212 |
-| 6 | NE corner | 200 | 235 | 3.9% toward R | 1.6 pts more R | 117 | 209 |
-| 7 | ZIP number | 205 | 230 | 2.8% toward R | 1.1 pts more R | 119 | 212 |
-| 8 | Best score | 196 | 239 | 5.0% toward R | 1.4 pts more R | 120 | 208 |
-| 9 | Random draw | 207 | 228 | 2.4% toward R | 1.0 pts more R | 110 | 214 |
+| 1 | Shortest splitline | 196 | 239 | 5.0% toward R | 1.5 pts more R | 123 | 209 |
+| 2 | Splitline + counties | 192 | 243 | 6.2% toward R | 1.6 pts more R | 124 | 204 |
+| 3 | Counties first | 202 | 233 | 3.4% toward R | 0.7 pts more R | 120 | 214 |
+| 4 | State center | 200 | 235 | 3.9% toward R | 0.3 pts more R | 121 | 216 |
+| 5 | NW corner | 193 | 242 | 5.3% toward R | 1.1 pts more R | 117 | 206 |
+| 6 | NE corner | 204 | 231 | 2.7% toward R | 0.8 pts more R | 116 | 216 |
+| 7 | ZIP number | 201 | 234 | 4.0% toward R | 0.7 pts more R | 129 | 213 |
+| 8 | Best score | 193 | 242 | 5.6% toward R | 1.9 pts more R | 124 | 204 |
+| 9 | Random draw | 200 | 235 | 3.8% toward R | 1.4 pts more R | 113 | 206 |
 | — | *Enacted 2024 maps* | *205* | *230* | | *about 1.5 pts more R* | | |
 
 *Efficiency gap*: the difference in each party's "wasted" votes (votes for a loser, or a winner's votes beyond 50%), as a share of all votes. *Median district vs. nation*: how much redder the middle district is than the country. *50/50 vote*: every district shifted by the same amount until the national vote is tied. The enacted-map row is The Downballot's count for the districts used in 2024.
 
-**What the numbers show.** Every mode gives Harris fewer seats than her vote share would suggest, by 7 to 20 seats, and every mode's median district is redder than the nation. The enacted 2024 maps show a similar tilt. Most of the gap comes from a few states: under shortest splitline, Harris falls furthest short of a proportional share in Florida, Ohio, Texas, North Carolina, Indiana and Pennsylvania, and does better than proportional in California, New Jersey, Massachusetts, Connecticut and Washington. The modes differ by up to 13 seats from each other. The two county-keeping modes lean furthest toward Republicans, and shortest splitline produces the most competitive seats.
+**What the numbers show.** Every mode gives Harris fewer seats than her vote share would suggest, by about 10 to 22 seats, and every mode's median district is redder than the nation. The enacted 2024 maps show a similar tilt. Most of the gap comes from a few states: under shortest splitline, Harris falls furthest short of a proportional share in Florida, Texas, Ohio, Georgia, North Carolina, Indiana and Pennsylvania, and does better than proportional in California, New Jersey, Massachusetts, Connecticut and Washington. The modes differ by up to 12 seats from each other. Splitline + counties and Best score lean furthest toward Republicans, NE corner and Counties first the least. ZIP number produces the most competitive seats (129), with Splitline + counties, Best score and Shortest splitline close behind.
+
+<h3 id="responsiveness">Responsiveness: how seats follow votes</h3>
+
+A map is responsive when a shift in how people vote produces a shift in who wins. To measure it, every district's 2024 presidential result is moved by the same amount until the national two-party vote reaches a given level, and the seats are counted again.
+
+| Democratic share of the national two-party vote | 48% | 50% | 52% | 54% | 56% |
+|---|---|---|---|---|---|
+| Shortest splitline (Democratic seats) | 188 | 209 | 232 | 262 | 289 |
+| All nine modes (range) | 181–189 | 204–216 | 229–242 | 257–266 | 278–292 |
+
+Under shortest splitline, each 2-point shift in the national vote moves about 21 to 30 seats. At any given vote share, the nine modes differ by 8 to 14 seats. The national vote moves far more seats than the choice of mode. Near a 50–50 vote, though, the mode can decide which party holds the majority.
 
 <h3 id="losing-side">Voters represented by someone they voted against</h3>
 
@@ -283,8 +294,8 @@ In any system of single-member districts, everyone who voted for a losing candid
 |---|---|---|---|
 | Actual 2024 House races, enacted maps | 36.3% (53.7 million) | 37.8%* | 31.4%* |
 | Presidential vote, enacted maps | 37.6% | 43.0% | 32.3% |
-| Presidential vote, ZIP modes (range of all nine) | 38.6–39.1% | 42.8–46.0% | 31.9–35.0% |
-| Presidential vote, shortest splitline | 39.0% | 44.0% | 34.1% |
+| Presidential vote, ZIP modes (range of all nine) | 38.6–39.2% | 43.2–46.6% | 31.2–34.8% |
+| Presidential vote, shortest splitline | 39.0% | 45.7% | 32.6% |
 
 \*For actual House races: Democratic and Republican House voters whose representative is from another party.
 
@@ -300,8 +311,9 @@ The per-district, per-state and per-mode results are in `data/outcomes/`, and th
 
 A separate program, written independently of the districting code, checks every mode and confirms that:
 
-- every one of the 33,585 ZIPs is assigned to exactly one district;
-- every ZIP's district is in that ZIP's own state;
+- every one of the 33,725 building blocks (33,448 whole ZIPs and 277 pieces of ZIPs split by a state line) is assigned to exactly one district;
+- every block's district is in that block's own state;
+- no ZIP is divided except by a state line: the only divided ZIPs are the 137 a state line runs through, one piece per state;
 - each state has exactly its number of seats, for 435 districts in total;
 - every district is one connected piece;
 - district populations add up to the total population.

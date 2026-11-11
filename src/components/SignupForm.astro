@@ -1,0 +1,193 @@
+---
+// PLACEHOLDER signup: email or an AT Protocol (Bluesky) handle. Nothing is sent anywhere yet: the script below only
+// validates and shows a message. To go live, replace the submit handler with a POST to the signup endpoint
+// (email list) and, for handles, resolve the handle to a DID and store it (or follow it from the project account).
+interface Props {
+  compact?: boolean;
+  id?: string; // unique per page when the form appears twice (home + footer)
+}
+const { compact = false, id = "signup" } = Astro.props;
+---
+<form class:list={["signup", { compact }]} data-signup novalidate aria-labelledby={`${id}-title`}>
+  <p id={`${id}-title`} class="title">{compact ? "Get updates" : "Follow the project"}</p>
+  {!compact && <p class="sub">Occasional updates when new maps, data or analysis are published. No spam, and you can leave anytime.</p>}
+  <div class="tabs" role="radiogroup" aria-label="Sign up with">
+    <label><input type="radio" name="via" value="email" checked /> <span>Email</span></label>
+    <label><input type="radio" name="via" value="atproto" /> <span>Bluesky / AT Protocol</span></label>
+  </div>
+  <div class="row" data-via="email">
+    <label class="vh" for={`${id}-email`}>Email address</label>
+    <input id={`${id}-email`} name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" />
+    <button type="submit">Notify me</button>
+  </div>
+  <div class="row" data-via="atproto" hidden>
+    <label class="vh" for={`${id}-handle`}>Bluesky or AT Protocol handle</label>
+    <input id={`${id}-handle`} name="handle" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="you.bsky.social" />
+    <button type="submit">Follow</button>
+  </div>
+  <p class="note" data-note role="status" aria-live="polite">
+    <span data-hint="email">We'll only use your email for project updates.</span>
+    <span data-hint="atproto" hidden>Use any AT Protocol handle, from Bluesky or elsewhere. No email needed.</span>
+  </p>
+</form>
+
+<style>
+  .signup {
+    font: 15px/1.45 var(--font-body);
+    color: var(--ink);
+  }
+  .title {
+    margin: 0 0 4px;
+    font: 700 20px/1.2 var(--font-display);
+    letter-spacing: -0.01em;
+  }
+  .compact .title {
+    font-size: 15px;
+    margin-bottom: 10px;
+  }
+  .sub {
+    margin: 0 0 14px;
+    color: var(--muted);
+  }
+  .tabs {
+    display: inline-flex;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 10px;
+    background: var(--ground);
+  }
+  .tabs label {
+    position: relative;
+    cursor: pointer;
+  }
+  .tabs input {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .tabs span {
+    display: block;
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .tabs input:checked + span {
+    background: var(--ink);
+    color: var(--panel);
+  }
+  .tabs input:focus-visible + span {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .row {
+    display: flex;
+    gap: 8px;
+  }
+  .row[hidden] {
+    display: none;
+  }
+  .row input {
+    flex: 1;
+    min-width: 0;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent);
+    border-radius: 6px;
+    background: var(--ground);
+    color: var(--ink);
+    font: 16px var(--font-body);
+  }
+  .row input[aria-invalid="true"] {
+    border-color: var(--bad);
+  }
+  .row button {
+    height: 44px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font: 600 15px var(--font-body);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .row button:hover {
+    filter: brightness(1.12);
+  }
+  .row input:focus-visible,
+  .row button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .note {
+    margin: 8px 0 0;
+    min-height: 1.45em;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .note.ok {
+    color: var(--good);
+  }
+  .note.err {
+    color: var(--bad);
+  }
+  .compact .tabs span {
+    padding: 5px 10px;
+    font-size: 13px;
+  }
+  .vh {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+</style>
+
+<script>
+  // Placeholder behaviour only (see the note at the top of this file).
+  const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  // AT Protocol handle: a domain name, e.g. alice.bsky.social or alice.com (a leading @ is allowed and stripped)
+  const HANDLE = /^(?=.{3,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/i;
+
+  for (const form of document.querySelectorAll<HTMLFormElement>("form[data-signup]")) {
+    const note = form.querySelector<HTMLElement>("[data-note]")!;
+    const via = () => (form.querySelector<HTMLInputElement>('input[name="via"]:checked')?.value ?? "email");
+    const show = () => {
+      for (const el of form.querySelectorAll<HTMLElement>("[data-via]")) el.hidden = el.dataset.via !== via();
+      note.className = "note";
+      note.querySelectorAll<HTMLElement>("[data-hint]").forEach((h) => (h.hidden = h.dataset.hint !== via()));
+      note.querySelector("[data-msg]")?.remove();
+    };
+    form.addEventListener("change", (e) => { if ((e.target as HTMLInputElement).name === "via") show(); });
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const v = via();
+      const input = form.querySelector<HTMLInputElement>(v === "email" ? 'input[name="email"]' : 'input[name="handle"]')!;
+      const value = input.value.trim().replace(/^@/, "");
+      const valid = v === "email" ? EMAIL.test(value) : HANDLE.test(value);
+      input.setAttribute("aria-invalid", String(!valid));
+      note.querySelectorAll<HTMLElement>("[data-hint]").forEach((h) => (h.hidden = true));
+      note.querySelector("[data-msg]")?.remove();
+      const msg = document.createElement("span");
+      msg.dataset.msg = "";
+      if (!valid) {
+        note.className = "note err";
+        msg.textContent = v === "email" ? "Please enter a valid email address." : "Please enter a handle like you.bsky.social.";
+        input.focus();
+      } else {
+        note.className = "note ok";
+        msg.textContent = "Thanks! Sign-ups aren't connected yet, so nothing was sent. Check back soon.";
+        input.value = "";
+      }
+      note.append(msg);
+    });
+  }
+</script>

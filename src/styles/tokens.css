@@ -14,6 +14,8 @@
   --font-display: "Public Sans", "Helvetica Neue", Arial, sans-serif;
   --font-body: "Public Sans", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --header-h: 56px;  /* SiteHeader; the map page fills the rest of the screen */
+  --page-w: 1160px;  /* max content width of header, footer and home page */
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
