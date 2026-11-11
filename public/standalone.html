@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZIP Code Districts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lib/maplibre-gl.css">
+<style>
+/* Layout: full-bleed map with a left control rail (bottom sheet on phones). Civic-cartography palette:
+   ink navy text, paper-grey ground, one federal-blue accent; district fills are a categorical set. */
+:root {
+  --ground: #eef0f3;
+  --panel: #ffffff;
+  --ink: #17202e;
+  --muted: #5b6573;
+  --rule: #d8dde4;
+  --accent: #1d4ed8;
+  --sea: #e6ebf1;
+  --land: #bfc4cb;
+  --good: #15803d; --warn: #b45309; --bad: #b91c1c;
+  --font-display: "Public Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Public Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0f141b; --panel: #161d27; --ink: #e6ebf2; --muted: #9aa5b4; --rule: #2a3442;
+    --accent: #7aa2ff; --sea: #0b1016; --land: #3a404a; --good: #4ade80; --warn: #fbbf24; --bad: #f87171; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0f141b; --panel: #161d27; --ink: #e6ebf2; --muted: #9aa5b4; --rule: #2a3442;
+  --accent: #7aa2ff; --sea: #0b1016; --land: #3a404a; --good: #4ade80; --warn: #fbbf24; --bad: #f87171; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--ground); color: var(--ink); font: 14px/1.45 var(--font-body); }
+.app { display: grid; grid-template-columns: 360px 1fr; height: 100%; }
+aside { background: var(--panel); border-right: 1px solid var(--rule); overflow-y: auto; padding: 20px 18px 28px; display: flex; flex-direction: column; gap: 18px; }
+#map { position: relative; background: var(--sea); }
+h1 { font: 800 22px/1.15 var(--font-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.lede { color: var(--muted); margin: 6px 0 0; font-size: 13px; }
+h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 8px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.seg button { font: 500 13px/1.2 var(--font-body); padding: 9px 10px; border: 1px solid var(--rule); background: var(--ground); color: var(--ink); border-radius: 8px; cursor: pointer; text-align: left; display: flex; gap: 8px; align-items: center; }
+.seg button svg { flex: none; }
+.seg button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--ink); box-shadow: inset 0 0 0 1px var(--accent); }
+.seg button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.desc { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.stat { border: 1px solid var(--rule); border-radius: 8px; padding: 8px 9px; }
+.stat b { display: block; font: 500 17px/1.1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11px; color: var(--muted); }
+.row { display: flex; gap: 6px; }
+input[type="search"], select { font: 14px var(--font-body); padding: 8px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--ground); color: var(--ink); width: 100%; min-width: 0; }
+.btn { font: 500 13px var(--font-body); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: var(--panel); cursor: pointer; white-space: nowrap; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 1em; }
+.card { border: 1px solid var(--rule); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.card .title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.card .title b { font: 800 20px/1 var(--font-display); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 13px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.pill { font: 500 11.5px/1 var(--font-mono); padding: 4px 7px; border-radius: 99px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pill.good { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.pill.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.pill.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.zips { display: flex; flex-wrap: wrap; gap: 4px; max-height: 130px; overflow-y: auto; }
+.zips button { font: 11.5px var(--font-mono); padding: 2px 5px; border: 1px solid var(--rule); border-radius: 4px; background: transparent; color: var(--ink); cursor: pointer; }
+.zips button:hover { border-color: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; padding: 4px 4px; border-bottom: 1px solid var(--rule); }
+td { padding: 5px 4px; border-bottom: 1px solid var(--rule); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+td:first-child { font-family: var(--font-body); font-weight: 600; }
+tbody tr { cursor: pointer; } tbody tr:hover, tbody tr.sel { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.num { text-align: right; }
+details { border-top: 1px solid var(--rule); padding-top: 12px; font-size: 12.5px; color: var(--muted); }
+details p { margin: 8px 0; max-width: 65ch; }
+summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+.jump { position: absolute; top: 10px; left: 10px; z-index: 2; display: flex; gap: 4px; }
+.jump button { font: 500 12px var(--font-body); padding: 6px 9px; border-radius: 6px; border: 1px solid var(--rule); background: var(--panel); color: var(--ink); cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.tip { position: absolute; z-index: 3; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.15); min-width: 180px; display: none; }
+.tip b { font-family: var(--font-mono); }
+.tip .t2 { color: var(--muted); }
+.lbl { font: 600 10.5px/1 var(--font-body); color: #17202e; background: rgba(255,255,255,.82); padding: 2px 4px; border-radius: 3px; pointer-events: none; white-space: nowrap; }
+.legend { position: absolute; left: 10px; bottom: 28px; z-index: 2; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 9px 11px; font-size: 12px; max-width: 250px; box-shadow: 0 1px 3px rgba(0,0,0,.1); display: grid; gap: 6px; }
+.legend .li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
+.legend .k { width: 22px; height: 14px; border-radius: 2px; margin-top: 1px; }
+.legend small { display: block; color: var(--muted); font-size: 11px; line-height: 1.35; }
+.legend-toggle { font: 600 11px var(--font-body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.legend.collapsed .li { display: none; }
+@media (max-width: 760px) { .legend { bottom: 22px; max-width: 200px; } }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; z-index: 4; background: var(--sea); color: var(--muted); font-size: 13px; }
+.loading .bar { width: 220px; height: 4px; background: var(--rule); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+.loading .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 55% 45%; }
+  aside { order: 2; border-right: 0; border-top: 1px solid var(--rule); padding: 14px 16px 24px; }
+  #map { order: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .loading .bar i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <header>
+      <h1>ZIP Code Districts</h1>
+      <p class="lede">All 435 U.S. House districts redrawn by joining neighboring ZIP codes, with no voter or party data. Each state keeps its 2020 seat count and every district aims for that state's ideal population.</p>
+    </header>
+
+    <section aria-labelledby="h-strat">
+      <h2 id="h-strat">How districts are built</h2>
+      <div class="seg" id="strategies" role="group" aria-label="Districting strategy">
+        <button type="button" data-s="nw" id="s-nw"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2" fill="none" stroke="currentColor"/><circle cx="4.5" cy="4.5" r="2.2" fill="currentColor"/></svg>NW corner</button>
+        <button type="button" data-s="ne" id="s-ne"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2" fill="none" stroke="currentColor"/><circle cx="11.5" cy="4.5" r="2.2" fill="currentColor"/></svg>NE corner</button>
+        <button type="button" data-s="center" id="s-center"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2" fill="none" stroke="currentColor"/><circle cx="8" cy="8" r="2.2" fill="currentColor"/></svg>State center</button>
+        <button type="button" data-s="zip" id="s-zip"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><text x="8" y="11.5" text-anchor="middle" font-size="9" font-family="monospace" fill="currentColor">01</text><rect x="1.5" y="1.5" width="13" height="13" rx="2" fill="none" stroke="currentColor"/></svg>ZIP number</button>
+      </div>
+      <p class="desc" id="strat-desc"></p>
+    </section>
+
+    <section aria-labelledby="h-stats">
+      <h2 id="h-stats">Population balance, 429 districts in multi-seat states</h2>
+      <div class="stats">
+        <div class="stat"><b id="st-mean">–</b><span>mean deviation</span></div>
+        <div class="stat"><b id="st-max">–</b><span>largest deviation</span></div>
+        <div class="stat"><b id="st-w1">–</b><span>within ±1%</span></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-find">
+      <h2 id="h-find">Find a ZIP code</h2>
+      <form class="row" id="zipform">
+        <input type="search" id="zipq" inputmode="numeric" maxlength="5" placeholder="e.g. 48226" aria-label="ZIP code" autocomplete="off">
+        <button class="btn" type="submit" id="zipgo">Show</button>
+      </form>
+      <div class="hint" id="ziphint"></div>
+    </section>
+
+    <section id="selcard" aria-live="polite"></section>
+
+    <section aria-labelledby="h-state">
+      <h2 id="h-state">Districts by state</h2>
+      <select id="statesel" aria-labelledby="h-state"></select>
+      <div id="statetable" style="margin-top:8px"></div>
+    </section>
+
+    <details>
+      <summary>Method and data</summary>
+      <p><b>Building blocks.</b> 33,585 ZIP Code Tabulation Areas (the Census Bureau's land-area version of ZIP codes) with 2020 Census population. A ZIP that straddles a state line goes to the state holding most of its area. ZIPs are whole units and never split.</p>
+      <p><b>Seats and targets.</b> Each state keeps its 2020 apportionment. The national average is 761,169 people per seat, but districts cannot cross state lines, so the target is the state's population divided by its seats (Montana ≈ 542,000 per district, Delaware ≈ 990,000 for its single seat).</p>
+      <p><b>Growing districts.</b> Starting from the chosen anchor, a district absorbs adjacent ZIPs until it reaches the target, then the next district starts from the unassigned ZIP closest to the anchor. A balancing pass then trades border ZIPs between neighboring districts to even out population while keeping every district in one piece and its borders smooth.</p>
+      <p><b>Neighbors.</b> ZIPs are neighbors when their boundaries touch, when they face each other across unpopulated land within 25 km, or across water when that is the only link (islands).</p>
+      <p><b>Grey areas</b> are land with no ZIP code area (national forests, deserts, parks). They have no residents and belong to no district.</p>
+      <p><b>Sources.</b> U.S. Census Bureau: 2020 DHC Table P1 by ZCTA; 2020 cartographic boundaries (cb_2020_us_zcta520_500k, states 500k); 2020 apportionment.</p>
+    </details>
+  </aside>
+
+  <div id="map">
+    <div class="jump" role="group" aria-label="Jump to region">
+      <button type="button" data-view="l48" id="v-l48">Lower 48</button>
+      <button type="button" data-view="ak" id="v-ak">Alaska</button>
+      <button type="button" data-view="hi" id="v-hi">Hawaii</button>
+    </div>
+    <div class="legend" id="legend">
+      <button type="button" class="legend-toggle" id="legend-toggle" aria-expanded="true">Legend</button>
+      <div class="li"><span class="k" style="background:linear-gradient(90deg,#4e79a7 0 33%,#f28e2b 33% 66%,#59a14f 66%);opacity:.8"></span><span>District<small>Colors only tell neighbors apart.</small></span></div>
+      <div class="li"><span class="k" style="background:var(--land)"></span><span>No ZIP code area<small>Unpopulated land such as national forests, deserts, parks and military ranges. Zero residents, so it belongs to no district.</small></span></div>
+      <div class="li"><span class="k" style="background:none;border-top:3px solid #0b111a;height:0;margin-top:7px"></span><span>State line</span></div>
+      <div class="li"><span class="k" style="background:none;border-top:1.5px solid #1b2433;height:0;margin-top:7px"></span><span>District border</span></div>
+      <div class="li"><span class="k" style="background:#4e79a7;opacity:.8;position:relative;overflow:hidden"><i style="position:absolute;left:10px;top:0;bottom:0;border-left:1px solid #fff"></i></span><span>ZIP code boundary<small>Shown when zoomed in.</small></span></div>
+    </div>
+    <div class="tip" id="tip"></div>
+    <div class="loading" id="loading"><div>Loading 33,585 ZIP code areas…<div class="bar"><i id="loadbar"></i></div></div></div>
+  </div>
+</div>
+
+<script src="lib/maplibre-gl.js"></script>
+<script src="lib/topojson-client.min.js"></script>
+<script>
+(() => {
+  "use strict";
+  const PALETTE = ["#4e79a7", "#f28e2b", "#59a14f", "#e15759", "#76b7b2", "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#86bcb6"];
+  const DESCS = {
+    nw: "Each state fills from its northwest corner. District 1 grows from the ZIP nearest that corner; each new district starts at the unassigned ZIP closest to it.",
+    ne: "Each state fills from its northeast corner. District 1 grows from the ZIP nearest that corner; each new district starts at the unassigned ZIP closest to it.",
+    center: "Each state fills outward from the middle of its map extent. District 1 surrounds the central ZIP; later districts form around it.",
+    zip: "Each state starts at its lowest-numbered ZIP, and a growing district always adds the neighboring ZIP with the lowest number. Postal numbering follows mail-sorting regions, so districts follow them too.",
+  };
+  const VIEWS = { l48: [[-125, 24.3], [-66.8, 49.5]], ak: [[-170, 51], [-129.5, 71.5]], hi: [[-160.5, 18.8], [-154.6, 22.4]] };
+  const NAMES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Math.round(n).toLocaleString("en-US");
+  const devClass = (d) => (Math.abs(d) <= 1 ? "good" : Math.abs(d) <= 2 ? "warn" : "bad");
+  const devText = (d) => (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d).toFixed(2) + "%";
+
+  let S = ["nw", "ne", "center", "zip"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "nw";
+  let meta, topo, zctaFC, distFC = {}, lblFC = {}, zipIndex = new Map(), distBBox = {}, distZips = {};
+  let selected = null, pinnedZip = null, markers = [], stateBBox = {}, selFilter = ["==", ["get", "zcta"], "__none__"], zipFilter = selFilter;
+  const EMPTY = { type: "FeatureCollection", features: [] }, NONE = ["==", ["get", "zcta"], "__none__"];
+  const DETAIL_Z = 7; const detail = { loaded: new Set(), loading: new Set(), z: [], d: [] };
+
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const map = new maplibregl.Map({
+    container: "map",
+    style: { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": css("--sea") } }] },
+    bounds: VIEWS.l48, fitBoundsOptions: { padding: 20 }, maxZoom: 13.5, minZoom: 2, dragRotate: false, pitchWithRotate: false,
+    attributionControl: { compact: true, customAttribution: "Boundaries & population: U.S. Census Bureau (2020)" },
+  });
+  map.touchZoomRotate.disableRotation();
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+
+  async function fetchWithProgress(url, onProg) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(url + " " + res.status);
+    const total = +res.headers.get("content-length") || 0;
+    if (!res.body || !total) return res.json();
+    const reader = res.body.getReader(); const chunks = []; let got = 0;
+    for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); got += value.length; onProg(got / total); }
+    const buf = new Uint8Array(got); let o = 0; for (const c of chunks) { buf.set(c, o); o += c.length; }
+    return JSON.parse(new TextDecoder().decode(buf));
+  }
+
+  function bboxOf(geom, b = [180, 90, -180, -90]) {
+    const walk = (c) => { if (typeof c[0] === "number") { if (c[0] < b[0]) b[0] = c[0]; if (c[1] < b[1]) b[1] = c[1]; if (c[0] > b[2]) b[2] = c[0]; if (c[1] > b[3]) b[3] = c[1]; } else c.forEach(walk); };
+    walk(geom.coordinates); return b;
+  }
+
+  async function load() {
+    const [m, landTopo, t] = await Promise.all([
+      fetch("data/districts.json").then((r) => r.json()),
+      fetch("data/land.topo.json").then((r) => r.json()),
+      fetchWithProgress("data/zipdistricts.topo.json", (p) => ($("loadbar").style.width = Math.round(p * 100) + "%")),
+    ]);
+    meta = m; topo = t;
+    zctaFC = topojson.feature(topo, topo.objects.zctas);
+    for (const f of zctaFC.features) zipIndex.set(f.properties.zcta, f);
+    for (const s of Object.keys(meta.strategies)) {
+      distFC[s] = topojson.feature(topo, topo.objects["dist_" + s]);
+      lblFC[s] = topojson.feature(topo, topo.objects["lbl_" + s]);
+      distBBox[s] = {}; for (const f of distFC[s].features) distBBox[s][f.properties["d_" + s]] = bboxOf(f.geometry);
+      const dz = (distZips[s] = {}); for (const f of zctaFC.features) (dz[f.properties["d_" + s]] ??= []).push(f.properties.zcta);
+    }
+    const states = topojson.feature(topo, topo.objects.states);
+    if (!map.isStyleLoaded()) await new Promise((r) => map.once("load", r));
+    stateBBox = Object.fromEntries(states.features.map((f) => [f.properties.st, bboxOf(f.geometry)]));
+    map.addSource("zctas", { type: "geojson", data: zctaFC, tolerance: 0.25 });
+    map.addSource("dist", { type: "geojson", data: distFC[S], tolerance: 0.25 });
+    map.addSource("states", { type: "geojson", data: states, tolerance: 0.25 });
+    // real Census state boundaries: covers land with no ZIP area (the ZIP-derived outlines have holes there)
+    map.addSource("land", { type: "geojson", data: topojson.feature(landTopo, landTopo.objects.land), tolerance: 0.2 });
+    map.addSource("zd", { type: "geojson", data: EMPTY, tolerance: 0.15 });
+    map.addSource("dd", { type: "geojson", data: EMPTY, tolerance: 0.15 });
+    const fillPaint = () => ({ "fill-color": fillExpr(), "fill-opacity": 0.78, "fill-antialias": false });
+    const zipLinePaint = { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 6.5, 0.2, 11, 0.9], "line-opacity": ["interpolate", ["linear"], ["zoom"], 6.5, 0, 8, 0.55] };
+    const distLinePaint = { "line-color": "#1b2433", "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.35, 7, 1.1, 11, 2.2], "line-opacity": 0.85 };
+    const selFill = { "fill-color": "#ffffff", "fill-opacity": 0.22 };
+    const selLine = { "line-color": "#0b111a", "line-width": ["interpolate", ["linear"], ["zoom"], 3, 2, 10, 4.5] };
+    // coarse national layers (always loaded) …
+    map.addLayer({ id: "land", type: "fill", source: "land", paint: { "fill-color": css("--land") } });
+    map.addLayer({ id: "zcta-fill", type: "fill", source: "zctas", paint: fillPaint() });
+    map.addLayer({ id: "zcta-line", type: "line", source: "zctas", minzoom: 6.5, paint: zipLinePaint });
+    // … and full-resolution layers for states in view once zoomed in
+    map.addLayer({ id: "zd-fill", type: "fill", source: "zd", paint: fillPaint(), layout: { visibility: "none" } });
+    map.addLayer({ id: "zd-line", type: "line", source: "zd", paint: zipLinePaint, layout: { visibility: "none" } });
+    map.addLayer({ id: "sel-fill", type: "fill", source: "dist", filter: NONE, paint: selFill });
+    map.addLayer({ id: "dd-sel-fill", type: "fill", source: "dd", filter: NONE, paint: selFill });
+    map.addLayer({ id: "dist-line", type: "line", source: "dist", paint: distLinePaint });
+    map.addLayer({ id: "dd-line", type: "line", source: "dd", filter: ["==", ["get", "s"], S], paint: distLinePaint, layout: { visibility: "none" } });
+    map.addLayer({ id: "state-line", type: "line", source: "states", paint: { "line-color": "#0b111a", "line-width": ["interpolate", ["linear"], ["zoom"], 3, 1, 7, 2.4, 11, 3.6] } });
+    map.addLayer({ id: "sel-line", type: "line", source: "dist", filter: NONE, paint: selLine });
+    map.addLayer({ id: "dd-sel-line", type: "line", source: "dd", filter: NONE, paint: selLine });
+    map.addLayer({ id: "zip-line", type: "line", source: "zctas", filter: NONE, paint: { "line-color": "#0b111a", "line-width": 2.2, "line-dasharray": [2, 1] } });
+    map.addLayer({ id: "zd-zip-line", type: "line", source: "zd", filter: NONE, paint: { "line-color": "#0b111a", "line-width": 2.2, "line-dasharray": [2, 1] } });
+    $("loading").remove();
+    buildStateSelect();
+    setStrategy(S, true);
+    wireMap();
+  }
+
+  function fillExpr() {
+    const e = ["match", ["get", "c_" + S]]; PALETTE.forEach((c, i) => e.push(i, c)); e.push("#999999"); return e;
+  }
+
+  function setStrategy(s, initial) {
+    S = s;
+    if (!initial || location.hash.slice(1) !== s) history.replaceState(null, "", "#" + s);
+    $("legend-toggle").addEventListener("click", () => {
+    const lg = $("legend"); const c = lg.classList.toggle("collapsed");
+    $("legend-toggle").setAttribute("aria-expanded", String(!c));
+    try { localStorage.setItem("zd-legend", c ? "0" : "1"); } catch (e) {}
+  });
+  try { if (localStorage.getItem("zd-legend") === "0" || (window.innerWidth < 760 && localStorage.getItem("zd-legend") !== "1")) { $("legend").classList.add("collapsed"); $("legend-toggle").setAttribute("aria-expanded", "false"); } } catch (e) {}
+  document.querySelectorAll("#strategies button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.s === s)));
+    $("strat-desc").textContent = DESCS[s];
+    const sum = meta.results[s].summary;
+    $("st-mean").textContent = sum.meanAbsDevPct.toFixed(2) + "%";
+    $("st-max").textContent = sum.maxAbsDevPct.toFixed(1) + "%";
+    $("st-w1").textContent = sum.within1pct + "/" + sum.multiSeatDistricts;
+    map.setPaintProperty("zcta-fill", "fill-color", fillExpr());
+    map.setPaintProperty("zd-fill", "fill-color", fillExpr());
+    map.setFilter("dd-line", ["==", ["get", "s"], s]);
+    map.getSource("dist").setData(distFC[s]);
+    // keep the same place selected: follow the pinned ZIP, or the old district's first ZIP
+    let anchorZip = pinnedZip || (selected && distZips[prevS]?.[selected]?.[0]);
+    prevS = s;
+    select(anchorZip ? zipIndex.get(anchorZip).properties["d_" + s] : null, false);
+    renderStateTable();
+    updateLabels();
+    if (!initial) refreshDetail();
+  }
+  let prevS = S;
+
+  function select(id, fly = true) {
+    selected = id;
+    const f = ["==", ["get", "d_" + S], id || "__none__"];
+    const fd = ["all", ["==", ["get", "s"], S], ["==", ["get", "d"], id || "__none__"]];
+    selFilter = f; refreshDetail();
+    map.setFilter("dd-sel-fill", fd); map.setFilter("dd-sel-line", fd);
+    renderCard();
+    renderStateTable();
+    if (id && fly) map.fitBounds(distBBox[S][id], { padding: 50, maxZoom: 10.5, duration: 700 });
+  }
+
+  function renderCard() {
+    const el = $("selcard");
+    if (!selected) { el.innerHTML = ""; return; }
+    const [pop, dev, nz] = meta.results[S].districts[selected];
+    const st = selected.split("-")[0];
+    const f = distFC[S].features.find((x) => x.properties["d_" + S] === selected);
+    const color = PALETTE[f ? f.properties["c_" + S] : 0];
+    const zips = (distZips[S][selected] || []).slice().sort();
+    el.innerHTML = `<div class="card">
+      <div class="title"><b><span class="sw" style="background:${color}"></span>${selected}</b><span class="pill ${devClass(dev)}">${devText(dev)} vs ideal</span></div>
+      <dl class="kv">
+        <dt>State</dt><dd>${NAMES[st]} · ${meta.seats[st]} seat${meta.seats[st] > 1 ? "s" : ""}</dd>
+        <dt>Population (2020)</dt><dd>${fmt(pop)}</dd>
+        <dt>State ideal</dt><dd>${fmt(meta.ideal[st])}</dd>
+        <dt>ZIP codes</dt><dd>${nz}</dd>
+      </dl>
+      <div class="zips" aria-label="ZIP codes in ${selected}">${zips.map((z) => `<button type="button" data-zip="${z}" ${z === pinnedZip ? 'style="border-color:var(--accent)"' : ""}>${z}</button>`).join("")}</div>
+    </div>`;
+    el.querySelectorAll(".zips button").forEach((b) => b.addEventListener("click", () => showZip(b.dataset.zip)));
+  }
+
+  function buildStateSelect() {
+    const sel = $("statesel");
+    sel.innerHTML = Object.keys(meta.seats).sort((a, b) => NAMES[a].localeCompare(NAMES[b])).map((st) => `<option value="${st}">${NAMES[st]} (${meta.seats[st]})</option>`).join("");
+    sel.value = "MI";
+    sel.addEventListener("change", () => {
+      renderStateTable();
+      const ids = Object.keys(distBBox[S]).filter((d) => d.startsWith(sel.value + "-"));
+      const b = ids.reduce((a, d) => { const x = distBBox[S][d]; return [Math.min(a[0], x[0]), Math.min(a[1], x[1]), Math.max(a[2], x[2]), Math.max(a[3], x[3])]; }, [180, 90, -180, -90]);
+      map.fitBounds(b, { padding: 30, duration: 700 });
+    });
+  }
+
+  function renderStateTable() {
+    const st = selected ? selected.split("-")[0] : $("statesel").value;
+    if ($("statesel").value !== st) $("statesel").value = st;
+    const n = meta.seats[st]; const rows = [];
+    const colorOf = {}; for (const f of distFC[S].features) colorOf[f.properties["d_" + S]] = f.properties["c_" + S];
+    for (let i = 1; i <= n; i++) {
+      const id = `${st}-${i}`; const [pop, dev, nz] = meta.results[S].districts[id];
+      rows.push(`<tr data-id="${id}" tabindex="0" class="${id === selected ? "sel" : ""}"><td><span class="sw" style="background:${PALETTE[colorOf[id]]}"></span>${i}</td><td class="num">${fmt(pop)}</td><td class="num"><span class="pill ${devClass(dev)}">${devText(dev)}</span></td><td class="num">${nz}</td></tr>`);
+    }
+    $("statetable").innerHTML = `<table><thead><tr><th>District</th><th class="num">Population</th><th class="num">vs ideal</th><th class="num">ZIPs</th></tr></thead><tbody>${rows.join("")}</tbody></table>
+      <div class="hint">Ideal for ${NAMES[st]}: ${fmt(meta.ideal[st])} people per district.</div>`;
+    $("statetable").querySelectorAll("tbody tr").forEach((tr) => {
+      tr.addEventListener("click", () => select(tr.dataset.id));
+      tr.addEventListener("keydown", (e) => { if (e.key === "Enter") select(tr.dataset.id); });
+    });
+  }
+
+  function showZip(z) {
+    const f = zipIndex.get(z);
+    if (!f) { $("ziphint").textContent = `${z} isn't a populated ZIP area in the 50 states. Try a nearby residential ZIP.`; return; }
+    pinnedZip = z;
+    zipFilter = ["==", ["get", "zcta"], z]; map.setFilter("zd-zip-line", zipFilter); refreshDetail();
+    $("ziphint").textContent = `${z} · ${fmt(f.properties.pop)} people · district ${f.properties["d_" + S]}`;
+    select(f.properties["d_" + S], false);
+    map.fitBounds(bboxOf(f.geometry), { padding: 120, maxZoom: 11, duration: 700 });
+  }
+
+  // ---- full-resolution state files, fetched on demand when zoomed in ----
+  function statesInView() {
+    const b = map.getBounds(); const v = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+    return Object.entries(stateBBox).filter(([, x]) => x[0] < v[2] && x[2] > v[0] && x[1] < v[3] && x[3] > v[1]).map(([st]) => st);
+  }
+  function loadDetail() {
+    if (map.getZoom() < DETAIL_Z - 0.5) return;
+    for (const st of statesInView()) {
+      if (detail.loaded.has(st) || detail.loading.has(st)) continue;
+      detail.loading.add(st);
+      fetch("data/states/" + st + ".topo.json").then((r) => r.json()).then((t) => {
+        for (const f of topojson.feature(t, t.objects.zctas).features) { f.properties.st = st; detail.z.push(f); }
+        for (const s of Object.keys(meta.strategies)) for (const f of topojson.feature(t, t.objects["dist_" + s]).features) {
+          f.properties = { s, d: f.properties["d_" + s] }; detail.d.push(f);
+        }
+        detail.loaded.add(st); detail.loading.delete(st);
+        map.getSource("zd").setData({ type: "FeatureCollection", features: detail.z });
+        map.getSource("dd").setData({ type: "FeatureCollection", features: detail.d });
+        refreshDetail();
+      }).catch(() => detail.loading.delete(st));
+    }
+  }
+  function refreshDetail() {
+    const on = map.getZoom() >= DETAIL_Z && detail.loaded.size > 0;
+    for (const L of ["zd-fill", "zd-line", "dd-line"]) map.setLayoutProperty(L, "visibility", on ? "visible" : "none");
+    const loaded = ["literal", [...detail.loaded]];
+    // hide coarse shapes wherever the detailed version is showing
+    map.setFilter("zcta-fill", on ? ["!", ["in", ["get", "st"], loaded]] : null);
+    map.setFilter("zcta-line", on ? ["!", ["in", ["get", "st"], loaded]] : null);
+    const notLoadedD = ["!", ["in", ["slice", ["get", "d_" + S], 0, 2], loaded]];
+    map.setFilter("dist-line", on ? notLoadedD : null);
+    map.setFilter("sel-fill", on ? ["all", selFilter, notLoadedD] : selFilter);
+    map.setFilter("sel-line", on ? ["all", selFilter, notLoadedD] : selFilter);
+    map.setFilter("zip-line", on ? ["all", zipFilter, ["!", ["in", ["get", "st"], loaded]]] : zipFilter);
+  }
+
+  function updateLabels() {
+    markers.forEach((m) => m.remove()); markers = [];
+    if (map.getZoom() < 5.2) return;
+    const b = map.getBounds(); let n = 0;
+    for (const f of lblFC[S].features) {
+      const [x, y] = f.geometry.coordinates;
+      if (!b.contains([x, y])) continue;
+      if (++n > 160) break;
+      const el = document.createElement("div"); el.className = "lbl"; el.textContent = f.properties["d_" + S];
+      markers.push(new maplibregl.Marker({ element: el }).setLngLat([x, y]).addTo(map));
+    }
+  }
+
+  function wireMap() {
+    const tip = $("tip");
+    for (const L of ["zcta-fill", "zd-fill"]) map.on("mousemove", L, (e) => {
+      const p = e.features[0].properties; const d = p["d_" + S]; const [dp, dev] = meta.results[S].districts[d];
+      map.getCanvas().style.cursor = "pointer";
+      tip.innerHTML = `<div><b>${p.zcta}</b> · ${fmt(p.pop)} people</div><div class="t2">District <b>${d}</b> · ${fmt(dp)} <span class="pill ${devClass(dev)}">${devText(dev)}</span></div>`;
+      tip.style.display = "block";
+      const w = map.getContainer().clientWidth; const x = e.point.x + 14;
+      tip.style.left = (x + 230 > w ? e.point.x - 240 : x) + "px"; tip.style.top = e.point.y + 14 + "px";
+    });
+    for (const L of ["zcta-fill", "zd-fill"]) map.on("mouseleave", L, () => { tip.style.display = "none"; map.getCanvas().style.cursor = ""; });
+    for (const L of ["zcta-fill", "zd-fill"]) map.on("click", L, (e) => { const p = e.features[0].properties; pinnedZip = null; zipFilter = NONE; map.setFilter("zd-zip-line", NONE); select(p["d_" + S], false); });
+    map.on("moveend", () => { updateLabels(); loadDetail(); refreshDetail(); });
+    map.on("zoomend", refreshDetail);
+    loadDetail(); refreshDetail();
+  }
+
+  document.querySelectorAll("#strategies button").forEach((b) => b.addEventListener("click", () => meta && setStrategy(b.dataset.s)));
+  document.querySelectorAll(".jump button").forEach((b) => b.addEventListener("click", () => map.fitBounds(VIEWS[b.dataset.view], { padding: 20, duration: 700 })));
+  $("zipform").addEventListener("submit", (e) => { e.preventDefault(); const z = $("zipq").value.trim().padStart(5, "0"); if (meta) showZip(z); });
+  window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (meta && h !== S && DESCS[h]) setStrategy(h); });
+  load().catch((err) => { const l = $("loading"); if (l) l.textContent = "The map data didn't load (" + err.message + "). Reload the page to try again."; console.error(err); });
+})();
+</script>
+</body>
+</html>
