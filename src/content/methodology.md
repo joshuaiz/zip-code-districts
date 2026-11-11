@@ -41,6 +41,12 @@ The map offers nine modes, each a different way to produce a first version of th
 
 **Distances** are measured in equal-area map projections: one for the lower 48, and separate Albers projections for Alaska and Hawaii.
 
+<h3 id="prior-work">Why ZIP codes: prior research</h3>
+
+Political scientists John Curiel and Tyler Steelman have studied what happens when district lines cut through ZIP codes. Current congressional districts split the ZIP codes of over 100 million Americans. In survey data from 2008 to 2016, people living in split ZIP codes were less likely to recognize or contact their representative, and felt more distant from them ideologically. Most people look up their representative by ZIP code, and several members of Congress ignore mail from outside their district. A follow-up study found that people in split ZIP codes were also less likely to know the race of their representative, which weakens the purpose of districts drawn under the Voting Rights Act. Curiel and Steelman proposed a zero-tolerance standard for ZIP splits. Their North Carolina simulations showed that whole-ZIP maps are feasible and substantially reduce partisan bias.
+
+This project builds on that idea in a different way: a fixed, politics-blind rule applied to every state, with the code and outcomes published. In every mode here, each ZIP belongs to exactly one district, so a ZIP code always tells you who your representative is.
+
 <h2 id="rules">The rules</h2>
 
 "The rules" means the complete recipe the program follows. Written down in full, it lets anyone who runs it on the same Census files get the same map. Every item below changes the result, so whoever chooses them holds real power. What keeps that power from becoming a gerrymander is *when* the choices are made (see [why the rules are fixed in advance](#fixed-in-advance)).
@@ -324,3 +330,5 @@ All nine modes pass.
 - Tony McGovern, 2024 county-level presidential results ([github.com/tonmcg/US_County_Level_Election_Results_08-24](https://github.com/tonmcg/US_County_Level_Election_Results_08-24)).
 - The Downballot, 2024 presidential results for all 435 House districts ([the-downballot.com](https://www.the-downballot.com/p/the-downballots-calculations-of-presidential)).
 - MIT Election Data and Science Lab, U.S. House 1976–2024 returns ([doi.org/10.7910/DVN/IG0UN2](https://doi.org/10.7910/DVN/IG0UN2)), and 2024 presidential results by congressional district compiled by Drew Savicki (via [jaytimm/PresElectionResults](https://github.com/jaytimm/PresElectionResults)).
+- Curiel and Steelman, "Redistricting Out Representation: Democratic Harms in Splitting Zip Codes," *Election Law Journal* 17(4), 2018, 328–353 ([preprint](https://commoncause.org/wp-content/uploads/2018/09/Redistricting-out-Representation-3rd-Place.pdf)); summarized in "Here's one way to end partisan gerrymandering: Don't break up Zip codes," *The Monkey Cage*, 2018 ([themonkeycage.org](https://themonkeycage.org/2018/10/heres-one-way-to-end-partisan-gerrymandering-dont-break-up-zip-codes/)).
+- Steelman and Curiel, "Redistricting Out Descriptive Representation: The Harmful Effect of Splitting ZIP Codes on the Constituent–Representative Link," *Journal of Race, Ethnicity, and Politics* 8(1), 2023 ([cambridge.org](https://www.cambridge.org/core/journals/journal-of-race-ethnicity-and-politics/article/redistricting-out-descriptive-representation-the-harmful-effect-of-splitting-zip-codes-on-the-constituentrepresentative-link/9CED7B19C2CC9A772DBF731C74F32348)).
