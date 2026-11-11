@@ -182,7 +182,11 @@ export default function ZipDistrictMap({ dataUrl = "/data", initialStrategy = "n
 
   return (
     <div className={`relative h-full w-full ${className}`}>
-      <div ref={box} className="absolute inset-0" />
+      {/* MapLibre's unlayered CSS sets .maplibregl-map { position: relative }, which beats Tailwind v4's
+          layered `absolute`, so the map gets its own child of the positioned wrapper. */}
+      <div className="absolute inset-0">
+        <div ref={box} className="h-full w-full" />
+      </div>
       <div className="absolute left-3 top-3 z-10 w-72 rounded-xl border border-slate-200 bg-white/95 p-3 text-sm shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
         <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Districting strategy">
           {(["nw", "ne", "center", "zip"] as Strategy[]).map((s) => (
