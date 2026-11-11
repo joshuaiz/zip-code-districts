@@ -4,12 +4,14 @@
 
 ```
 yarn install
-yarn dev           # http://localhost:8787  (/districts = React map, /standalone.html = no-build map)
+yarn dev           # http://localhost:8787  — the map is the home page
 yarn build         # static output in dist/
+yarn preview       # serve dist/ on :8787
 yarn astro check   # type-check src/
 ```
 
 Requires Node 22+. Astro's dev server runs detached; stop it with `yarn astro dev stop`.
+`/districts` redirects to `/`.
 
 U.S. House districts built by aggregating adjacent ZIP Code Tabulation Areas (ZCTAs), with four
 non-partisan seeding strategies. No voter, party, race or incumbent data is used anywhere.
@@ -30,16 +32,18 @@ district contiguous (checked independently by `pipeline/05_verify.py`). The 6 si
 ## Bundle layout
 
 ```
-public/                     → copy into your Astro site's /public
+public/
   data/zipdistricts.topo.json   national layer: ZCTAs (10% simplified) + dissolved districts for all 4 strategies,
                                 state outlines, district label points (one shared topology, 14.7 MB, 3.9 MB gzipped)
   data/states/XX.topo.json      full-resolution ZCTAs + districts per state, lazy-loaded at zoom ≥ 7 (43 MB total)
   data/land.topo.json           Census state boundaries (grey base layer: shows unpopulated land with no ZIP area)
   data/districts.json           per-district population, deviation, ZCTA count + summaries (45 KB)
-  standalone.html, lib/         the standalone published map (no build step), served at /standalone.html
 src/
-  components/ZipDistrictMap.tsx React island (MapLibre + Tailwind), type-checked
-  pages/districts.astro         example page
+  layouts/Base.astro            <html>/<head>: meta, title, Google Fonts (Public Sans, IBM Plex Mono), global.css
+  components/ZipDistrictMap.astro  the map: sidebar + MapLibre map markup and a bundled <script>
+  styles/map.css                the map's styles (global and unlayered, see below)
+  styles/global.css             Tailwind v4 entry (@import "tailwindcss")
+  pages/index.astro             Base + <ZipDistrictMap />
   lib/districter.js             the districting engine: dependency-free ES module, runs in Node or the browser
 data/
   zcta_graph.json               the ZCTA graph the engine runs on (pop, state, coordinates, neighbours) 4.8 MB
@@ -50,13 +54,25 @@ data/
 pipeline/                     rebuild everything from raw Census files
 ```
 
-### Astro setup
-```
-yarn add maplibre-gl topojson-client && yarn add -D @types/topojson-client
-```
-Put `ZipDistrictMap.tsx` in `src/components`, copy `public/data`, and render it with
-`client:only="react"`. The container needs a height (the example page uses `h-screen`). The data
-files are static JSON, so any CDN or static host works. Enable gzip/brotli: TopoJSON compresses ~4×.
+### How the map is built
+`ZipDistrictMap.astro` is a plain Astro component, no UI framework. Its `<script>` is bundled by Vite
+and imports `maplibre-gl` (plus its CSS) and `topojson-client` from node_modules. It fetches data
+from `${BASE_URL}data/`, so it works under any route or `base`. Behaviour:
+- strategy buttons recolor the map and set the URL hash (`/#nw`, `#ne`, `#center`, `#zip` deep-link)
+- ZIP search outlines the ZIP and opens its district card; ZIP chips in the card jump to that ZIP
+- the state dropdown fills the district table; clicking a row selects the district
+- full-resolution `data/states/XX.topo.json` files load on demand at zoom ≥ 7
+- the legend's collapsed state is remembered in localStorage
+
+`src/styles/map.css` is imported from the component's frontmatter, so it is **global**, not scoped:
+the script builds DOM at runtime (district labels, tooltip, district card, state table) that
+Astro's scoped styles can't reach. It is also **unlayered**, so it wins over Tailwind v4's
+`@layer base`/`utilities`. The bottom of the file restores the browser defaults that Tailwind's
+preflight removes and the design relies on. The `:root` tokens drive light and dark mode
+(`prefers-color-scheme`, or `data-theme="light|dark"` on `<html>`).
+
+The data files are static JSON, so any CDN or static host works. Enable gzip/brotli: TopoJSON
+compresses ~4×.
 
 ### Running the engine in the browser
 ```js

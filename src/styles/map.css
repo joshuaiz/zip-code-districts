@@ -1,0 +1,104 @@
+/* Map styles, ported from the standalone page. Global and unlayered on purpose:
+   - global: the map script creates DOM at runtime (.lbl markers, tooltip, district card, state table rows)
+   - unlayered: beats Tailwind v4's layered preflight/utilities, so the standalone look is preserved. */
+/* Layout: full-bleed map with a left control rail (bottom sheet on phones). Civic-cartography palette:
+   ink navy text, paper-grey ground, one federal-blue accent; district fills are a categorical set. */
+:root {
+  --ground: #eef0f3;
+  --panel: #ffffff;
+  --ink: #17202e;
+  --muted: #5b6573;
+  --rule: #d8dde4;
+  --accent: #1d4ed8;
+  --sea: #e6ebf1;
+  --land: #bfc4cb;
+  --good: #15803d; --warn: #b45309; --bad: #b91c1c;
+  --font-display: "Public Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Public Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0f141b; --panel: #161d27; --ink: #e6ebf2; --muted: #9aa5b4; --rule: #2a3442;
+    --accent: #7aa2ff; --sea: #0b1016; --land: #3a404a; --good: #4ade80; --warn: #fbbf24; --bad: #f87171; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0f141b; --panel: #161d27; --ink: #e6ebf2; --muted: #9aa5b4; --rule: #2a3442;
+  --accent: #7aa2ff; --sea: #0b1016; --land: #3a404a; --good: #4ade80; --warn: #fbbf24; --bad: #f87171; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--ground); color: var(--ink); font: 14px/1.45 var(--font-body); }
+.app { display: grid; grid-template-columns: 360px 1fr; height: 100%; }
+aside { background: var(--panel); border-right: 1px solid var(--rule); overflow-y: auto; padding: 20px 18px 28px; display: flex; flex-direction: column; gap: 18px; }
+#map { position: relative; background: var(--sea); }
+h1 { font: 800 22px/1.15 var(--font-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.lede { color: var(--muted); margin: 6px 0 0; font-size: 13px; }
+h2 { font: 600 11px/1 var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 8px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.seg button { font: 500 13px/1.2 var(--font-body); padding: 9px 10px; border: 1px solid var(--rule); background: var(--ground); color: var(--ink); border-radius: 8px; cursor: pointer; text-align: left; display: flex; gap: 8px; align-items: center; }
+.seg button svg { flex: none; }
+.seg button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--panel)); color: var(--ink); box-shadow: inset 0 0 0 1px var(--accent); }
+.seg button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.desc { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.stat { border: 1px solid var(--rule); border-radius: 8px; padding: 8px 9px; }
+.stat b { display: block; font: 500 17px/1.1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11px; color: var(--muted); }
+.row { display: flex; gap: 6px; }
+input[type="search"], select { font: 14px var(--font-body); padding: 8px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--ground); color: var(--ink); width: 100%; min-width: 0; }
+.btn { font: 500 13px var(--font-body); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: var(--panel); cursor: pointer; white-space: nowrap; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 1em; }
+.card { border: 1px solid var(--rule); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.card .title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.card .title b { font: 800 20px/1 var(--font-display); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 13px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.pill { font: 500 11.5px/1 var(--font-mono); padding: 4px 7px; border-radius: 99px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pill.good { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.pill.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.pill.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.zips { display: flex; flex-wrap: wrap; gap: 4px; max-height: 130px; overflow-y: auto; }
+.zips button { font: 11.5px var(--font-mono); padding: 2px 5px; border: 1px solid var(--rule); border-radius: 4px; background: transparent; color: var(--ink); cursor: pointer; }
+.zips button:hover { border-color: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; padding: 4px 4px; border-bottom: 1px solid var(--rule); }
+td { padding: 5px 4px; border-bottom: 1px solid var(--rule); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+td:first-child { font-family: var(--font-body); font-weight: 600; }
+tbody tr { cursor: pointer; } tbody tr:hover, tbody tr.sel { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.num { text-align: right; }
+details { border-top: 1px solid var(--rule); padding-top: 12px; font-size: 12.5px; color: var(--muted); }
+details p { margin: 8px 0; max-width: 65ch; }
+summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+.jump { position: absolute; top: 10px; left: 10px; z-index: 2; display: flex; gap: 4px; }
+.jump button { font: 500 12px var(--font-body); padding: 6px 9px; border-radius: 6px; border: 1px solid var(--rule); background: var(--panel); color: var(--ink); cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.tip { position: absolute; z-index: 3; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.15); min-width: 180px; display: none; }
+.tip b { font-family: var(--font-mono); }
+.tip .t2 { color: var(--muted); }
+.lbl { font: 600 10.5px/1 var(--font-body); color: #17202e; background: rgba(255,255,255,.82); padding: 2px 4px; border-radius: 3px; pointer-events: none; white-space: nowrap; }
+.legend { position: absolute; left: 10px; bottom: 28px; z-index: 2; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 9px 11px; font-size: 12px; max-width: 250px; box-shadow: 0 1px 3px rgba(0,0,0,.1); display: grid; gap: 6px; }
+.legend .li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
+.legend .k { width: 22px; height: 14px; border-radius: 2px; margin-top: 1px; }
+.legend small { display: block; color: var(--muted); font-size: 11px; line-height: 1.35; }
+.legend-toggle { font: 600 11px var(--font-body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.legend.collapsed .li { display: none; }
+@media (max-width: 760px) { .legend { bottom: 22px; max-width: 200px; } }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; z-index: 4; background: var(--sea); color: var(--muted); font-size: 13px; }
+.loading .bar { width: 220px; height: 4px; background: var(--rule); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+.loading .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: 55% 45%; }
+  aside { order: 2; border-right: 0; border-top: 1px solid var(--rule); padding: 14px 16px 24px; }
+  #map { order: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .loading .bar i { transition: none; } }
+/* Tailwind preflight resets (margin/padding: 0 on everything). Restore the browser defaults the
+   standalone page relied on, so the port renders the same. */
+dl.kv { margin: 1em 0; }
+option { padding: 0 2px 1px; }
