@@ -5,8 +5,15 @@ import "../styles/tokens.css";
 interface Props {
   title?: string;
   description?: string;
+  image?: string; // social share image, relative to the site root
 }
-const { title = "ZIP Code Districts", description } = Astro.props;
+const DEFAULT_DESC = "All 435 U.S. House districts redrawn by joining whole ZIP codes with one fixed rule and no political data. A non-partisan alternative to gerrymandering.";
+const { title = "ZIP Code Districts", description = DEFAULT_DESC, image = "/og.png" } = Astro.props;
+const site = Astro.site ?? new URL("https://zipcodedistricts.org");
+// canonical URL without ".html" (pages are built as files) and without a trailing "index"
+const path = Astro.url.pathname.replace(/\.html$/, "").replace(/\/index$/, "/");
+const canonical = new URL(path, site).href;
+const ogImage = new URL(image, site).href;
 ---
 <!doctype html>
 <html lang="en">
@@ -14,8 +21,22 @@ const { title = "ZIP Code Districts", description } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
-    {description && <meta name="description" content={description} />}
-    <link rel="icon" href="data:," />
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ZIP Code Districts" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Map of the United States divided into 435 House districts drawn from whole ZIP codes, with the question: what if congressional districts were drawn by unbiased rules, not by politicians?" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />

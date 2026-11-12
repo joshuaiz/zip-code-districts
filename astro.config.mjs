@@ -9,6 +9,8 @@ export default defineConfig({
   site: "https://zipcodedistricts.org",
   adapter: cloudflare(),
   server: { port: 8787, host: true },
+  // pages as /map.html etc., so /map is served directly (no redirect to /map/) and matches the OAuth redirect URI
+  build: { format: "file" },
   redirects: { "/districts": "/map" },
   vite: {
     plugins: [tailwindcss()],

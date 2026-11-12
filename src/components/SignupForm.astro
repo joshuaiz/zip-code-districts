@@ -180,7 +180,7 @@ const { compact = false, id = "signup" } = Astro.props;
 
   // messages after the email confirmation / unsubscribe links (they land on /?signup=…#updates)
   const flash = new URLSearchParams(location.search).get("signup");
-  const FLASH = { confirmed: "You're confirmed. Thanks for following the project!", unsubscribed: "You've been unsubscribed. You won't get any more emails.", followed: "Thanks for following the project!" };
+  const FLASH = { confirmed: "You're confirmed. Thanks for following the project!", unsubscribed: "You've been unsubscribed. You won't get any more emails.", followed: "Thanks for following the project!", invalid: "That link has expired or was already used. Sign up again below if you'd like." };
 
   for (const form of document.querySelectorAll<HTMLFormElement>("form[data-signup]")) {
     const note = form.querySelector<HTMLElement>("[data-note]")!;
@@ -193,7 +193,7 @@ const { compact = false, id = "signup" } = Astro.props;
     };
     const show = () => { for (const el of form.querySelectorAll<HTMLElement>("[data-via]")) el.hidden = el.dataset.via !== via(); say("", ""); };
     form.addEventListener("change", (e) => { if ((e.target as HTMLInputElement).name === "via") show(); });
-    if (flash && FLASH[flash as keyof typeof FLASH] && !form.classList.contains("compact")) say("ok", FLASH[flash as keyof typeof FLASH]);
+    if (flash && FLASH[flash as keyof typeof FLASH] && !form.classList.contains("compact")) say(flash === "invalid" ? "err" : "ok", FLASH[flash as keyof typeof FLASH]);
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();

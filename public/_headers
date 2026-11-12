@@ -1,0 +1,11 @@
+# Cloudflare static asset headers. The map data changes only when the pipeline is rerun, so let browsers and the
+# CDN reuse it for an hour (and serve a stale copy for up to a week while revalidating).
+/data/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=604800
+/img/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/og.png
+  Cache-Control: public, max-age=86400
+# Astro's hashed bundles never change
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

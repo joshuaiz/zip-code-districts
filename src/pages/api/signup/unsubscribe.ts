@@ -6,8 +6,7 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ url, redirect }) => {
   const token = url.searchParams.get("token") ?? "";
-  if (/^[0-9a-f]{48}$/.test(token)) {
-    await env.DB.prepare("UPDATE email_signups SET unsubscribed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE token = ?").bind(token).run();
-  }
-  return redirect("/?signup=unsubscribed#updates", 303);
+  if (!/^[0-9a-f]{48}$/.test(token)) return redirect("/?signup=invalid#updates", 303);
+  const r = await env.DB.prepare("UPDATE email_signups SET unsubscribed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE token = ?").bind(token).run();
+  return redirect(r.meta.changes ? "/?signup=unsubscribed#updates" : "/?signup=invalid#updates", 303);
 };

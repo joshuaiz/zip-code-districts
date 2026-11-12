@@ -321,6 +321,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     map.setFilter("dd-line", ["==", ["get", "s"], s]);
     map.getSource("dist").setData(distFC[s]);
     styleInsets(true);
+    if (insetsOn) map.setFilter("dist-line", notAkHiDist());
     // keep the same place selected: follow the pinned ZIP, or the old district's first ZIP
     let anchorZip = pinnedZip || (selected && distZips[prevS]?.[selected]?.[0]);
     prevS = s;
@@ -437,10 +438,11 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
     for (const L of ["zd-fill", "zd-line", "dd-line"]) map.setLayoutProperty(L, "visibility", on ? "visible" : "none");
     const loaded = ["literal", [...detail.loaded]];
     // hide coarse shapes wherever the detailed version is showing
-    map.setFilter("zcta-fill", on ? ["!", ["in", ["get", "st"], loaded]] : null);
-    map.setFilter("zcta-line", on ? ["!", ["in", ["get", "st"], loaded]] : null);
+    // (when not zoomed in, keep Alaska and Hawaii hidden if the insets are showing them)
+    map.setFilter("zcta-fill", on ? ["!", ["in", ["get", "st"], loaded]] : insetsOn ? NOT_AKHI : null);
+    map.setFilter("zcta-line", on ? ["!", ["in", ["get", "st"], loaded]] : insetsOn ? NOT_AKHI : null);
     const notLoadedD = ["!", ["in", ["slice", ["get", "d_" + S], 0, 2], loaded]];
-    map.setFilter("dist-line", on ? notLoadedD : null);
+    map.setFilter("dist-line", on ? notLoadedD : insetsOn ? notAkHiDist() : null);
     map.setFilter("sel-fill", on ? ["all", selFilter, notLoadedD] : selFilter);
     map.setFilter("sel-line", on ? ["all", selFilter, notLoadedD] : selFilter);
     map.setFilter("zip-line", on ? ["all", zipFilter, ["!", ["in", ["get", "st"], loaded]]] : zipFilter);
@@ -543,13 +545,28 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
       if (newMode) m.getSource("dist").setData(distOf(st));
     }
   }
+  // While the insets show, the real Alaska and Hawaii are hidden on the main map, so they never appear twice
+  // (in a tall window the national view would otherwise show the real Alaska above the lower 48).
+  const NOT_AKHI = ["!", ["in", ["get", "st"], ["literal", ["AK", "HI"]]]];
+  const NOT_AKHI_LAND = ["!", ["in", ["get", "STUSPS"], ["literal", ["AK", "HI"]]]];
+  const notAkHiDist = () => ["!", ["in", ["slice", ["get", "d_" + S], 0, 2], ["literal", ["AK", "HI"]]]];
+  let insetsOn = null;
+  function setInsetsOn(on) {
+    if (on === insetsOn) return; insetsOn = on;
+    map.setFilter("land", on ? NOT_AKHI_LAND : null);
+    map.setFilter("zcta-fill", on ? NOT_AKHI : null);
+    map.setFilter("zcta-line", on ? NOT_AKHI : null);
+    map.setFilter("dist-line", on ? notAkHiDist() : null);
+  }
   function updateInsets() {
     const el = $("insets"); if (!el || measuring) return;
-    const natZoom = (NAT ?? nationalCamera()).zoom;
-    // hide once the real state is on screen (its centre is in view), so it never shows twice
+    const nat = NAT ?? nationalCamera();
+    // shown at (or near) the national view: zoom close to it and the centre still near the lower 48
+    // (the Alaska / Hawaii buttons move the centre far away, which hides them)
     const W = map.getContainer().clientWidth, H = map.getContainer().clientHeight;
-    const centreIn = (v) => { const p = map.project([(v[0][0] + v[1][0]) / 2, (v[0][1] + v[1][1]) / 2]); return p.x > 0 && p.x < W && p.y > 0 && p.y < H; };
-    el.hidden = map.getZoom() > natZoom + 0.75 || centreIn(VIEWS.ak) || centreIn(VIEWS.hi);
+    const c = map.project(nat.center), off = Math.hypot(c.x - W / 2, c.y - H / 2);
+    el.hidden = map.getZoom() > nat.zoom + 0.75 || off > Math.min(W, H) * 0.35;
+    setInsetsOn(!el.hidden);
     if (el.hidden) return;
     const fr = l48Frame(), FW = fr.x1 - fr.x0, FH = fr.base - fr.y0;
     for (const [key, ins] of Object.entries(INSETS)) {
