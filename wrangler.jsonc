@@ -28,7 +28,7 @@
 		"SITE_URL": "https://zipcodedistricts.org",
 		"PROJECT_HANDLE": "zipcodedistricts.org",
 		// The project account's DID (did:plc:…), once the account exists. Left empty, it is resolved from the handle.
-		"PROJECT_DID": "",
+		"PROJECT_DID": "did:plc:wy6xl3kyuq73liaeycsxebjm",
 		"EMAIL_FROM": "ZIP Code Districts <updates@zipcodedistricts.org>"
 	}
 	// Secrets (not in this file): RESEND_API_KEY for confirmation emails, IP_HASH_SALT for rate limiting.
