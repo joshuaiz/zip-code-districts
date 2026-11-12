@@ -1,0 +1,38 @@
+// Cloudflare Workers config. The Astro adapter builds the static site into the Worker's assets and adds the
+// on-demand routes under /api. Docs: https://docs.astro.build/en/guides/integrations-guide/cloudflare/
+{
+	"name": "zip-code-districts",
+	"compatibility_date": "2026-11-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"observability": {
+		"enabled": true
+	},
+	// Signup storage. Create it once with `npx wrangler d1 create zcd-signups` and paste the id below.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "zcd-signups",
+			"database_id": "040b4566-fb95-4eaf-b6ae-b8d1fd36857d",
+			"migrations_dir": "migrations"
+		},
+		{
+			"binding": "zcd_signups",
+			"database_name": "zcd-signups",
+			"database_id": "040b4566-fb95-4eaf-b6ae-b8d1fd36857d"
+		}
+	],
+	"vars": {
+		"SITE_URL": "https://zipcodedistricts.org",
+		"PROJECT_HANDLE": "zipcodedistricts.org",
+		// The project account's DID (did:plc:…), once the account exists. Left empty, it is resolved from the handle.
+		"PROJECT_DID": "",
+		"EMAIL_FROM": "ZIP Code Districts <updates@zipcodedistricts.org>"
+	}
+	// Secrets (not in this file): RESEND_API_KEY for confirmation emails, IP_HASH_SALT for rate limiting.
+	//   npx wrangler secret put RESEND_API_KEY
+	//   npx wrangler secret put IP_HASH_SALT
+	// Local development reads them from .dev.vars.
+}

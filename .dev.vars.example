@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local development (git-ignored). Production: npx wrangler secret put <NAME>
+# Optional: without it, email signups are stored but no confirmation email is sent.
+RESEND_API_KEY=
+IP_HASH_SALT=change-me-to-a-long-random-string

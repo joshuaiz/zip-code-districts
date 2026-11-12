@@ -4,14 +4,46 @@
 
 ```
 yarn install
-yarn dev           # http://localhost:8787  — the map is the home page, /methodology explains every mode
-yarn build         # static output in dist/
-yarn preview       # serve dist/ on :8787
-yarn astro check   # type-check src/
+cp .dev.vars.example .dev.vars   # local secrets (optional)
+yarn db:migrate:local            # create the local signup database (once)
+yarn dev           # http://localhost:8787 — home page; the map is at /map, /methodology explains every mode
+yarn check         # type-check src/
+yarn build         # static pages + the Cloudflare Worker in dist/
+yarn preview       # run the build locally in the Workers runtime
 ```
 
-Requires Node 22+. Astro's dev server runs detached; stop it with `yarn astro dev stop`.
-`/districts` redirects to `/`.
+Requires Node 22+. `yarn dev` runs in Cloudflare's `workerd` runtime through the Astro adapter, so the `/api` routes
+and the local D1 database work as in production. `/districts` redirects to `/map`.
+To try the Bluesky sign-in locally, open the site at `http://127.0.0.1:8787` (AT Protocol "loopback" clients
+must use 127.0.0.1; the form redirects there automatically).
+
+## Deploy (Cloudflare Workers)
+
+The site is static except for a few on-demand routes under `/api` (signups). One-time setup:
+
+1. **DNS:** move `zipcodedistricts.org` to Cloudflare (add the site in Cloudflare, then set Hover's nameservers
+   to the two Cloudflare gives you).
+2. **Database:** `npx wrangler d1 create zcd-signups`, paste the `database_id` into `wrangler.jsonc`, then
+   `yarn db:migrate:remote`.
+3. **Secrets:** `npx wrangler secret put IP_HASH_SALT` (any long random string) and, for confirmation emails,
+   `npx wrangler secret put RESEND_API_KEY` (verify the sending domain in Resend first).
+4. **Deploy:** connect the GitHub repo in the Cloudflare dashboard (Workers → Create → Import a repository; build
+   command `yarn build`, deploy command `npx wrangler deploy`), or run `yarn deploy` from your Mac. Add
+   `zipcodedistricts.org` as the Worker's custom domain.
+5. **Project account:** create the account (e.g. on Bluesky), set its handle to `zipcodedistricts.org` with the
+   `_atproto` TXT record Bluesky shows you (in Cloudflare DNS), and put its DID in `PROJECT_DID` in `wrangler.jsonc`.
+
+### AT Protocol integration
+- **Sign-in:** browser OAuth (`@atproto/oauth-client-browser`), a public client described by
+  `public/oauth-client-metadata.json`. Scope: create a follow and an `org.zipcodedistricts.supporter` record only.
+- **Signup flow:** `SignupForm` → the person's own sign-in page → `/oauth/callback`, where they choose to follow the
+  project account and/or add a public supporter record (lexicon: `lexicons/org/zipcodedistricts/supporter.json`,
+  record key `self`, no location). The browser creates those records with the person's session;
+  `POST /api/signup/atproto` checks they exist in the person's repo before storing the DID, then the session is
+  signed out. The server never holds AT Protocol tokens.
+- **Email:** `POST /api/signup/email` with double opt-in (`/api/signup/confirm`, `/api/signup/unsubscribe`).
+- **Storage:** D1 (`migrations/0001_signups.sql`). ZIP codes are optional and private; `/api/stats.json` publishes
+  totals only. The privacy policy (`/privacy`) is a draft to review before launch.
 
 U.S. House districts built by aggregating adjacent ZIP Code Tabulation Areas (ZCTAs), with nine
 non-partisan districting modes, listed from most to least defensible as a neutral rule. No voter, party, race or incumbent data is used anywhere.

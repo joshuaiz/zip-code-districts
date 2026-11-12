@@ -1,0 +1,135 @@
+---
+// /oauth/callback: where the AT Protocol sign-in returns. The person chooses what to do with their account:
+// follow the project account (default) and/or add a public org.zipcodedistricts.supporter record, plus an optional
+// private ZIP code. The browser makes those records with the person's own session, the server verifies they exist
+// (/api/signup/atproto), and then the session is signed out: we keep no tokens.
+import Base from "../../layouts/Base.astro";
+import SiteHeader from "../../components/SiteHeader.astro";
+import SiteFooter from "../../components/SiteFooter.astro";
+---
+<Base title="Follow the project · ZIP Code Districts">
+  <div class="page">
+    <SiteHeader />
+    <main>
+      <section class="box" aria-live="polite">
+        <div id="state-loading"><h1>Finishing sign-in…</h1><p class="muted">One moment.</p></div>
+
+        <form id="state-choose" hidden>
+          <h1>Follow ZIP Code Districts</h1>
+          <p class="muted">Signed in as <b id="who"></b>. Choose what to do with your account. Nothing else in it can be read or changed.</p>
+          <label class="opt"><input type="checkbox" name="follow" checked /> <span><b>Follow <span id="proj">@zipcodedistricts.org</span></b><small>Updates show up in your feed. Unfollow any time.</small></span></label>
+          <label class="opt"><input type="checkbox" name="supporter" /> <span><b>Add a public supporter record</b><small>A small "I support ZIP Code Districts" record in your account that anyone can see, so supporters can be counted openly. It contains no location. Delete it any time.</small></span></label>
+          <label class="stmt" id="stmt-wrap" hidden>Optional public note (up to 300 characters)<textarea name="statement" maxlength="300" rows="3" placeholder="Why this matters to you"></textarea></label>
+          <label class="zip">ZIP code <small>(optional, private: used only to count supporters by state and district; never published or added to your account)</small><input name="zip" inputmode="numeric" maxlength="5" autocomplete="postal-code" placeholder="e.g. 60010" /></label>
+          <button type="submit">Confirm</button>
+          <p class="err" id="err" role="alert"></p>
+        </form>
+
+        <div id="state-done" hidden>
+          <h1>Thank you!</h1>
+          <p id="done-msg"></p>
+          <p><a href="/map">Explore the map →</a></p>
+        </div>
+
+        <div id="state-error" hidden>
+          <h1>Sign-in didn't finish</h1>
+          <p class="muted" id="error-msg">The sign-in was cancelled or expired.</p>
+          <p><a href="/#updates">Try again</a></p>
+        </div>
+      </section>
+    </main>
+    <SiteFooter signup={false} />
+  </div>
+</Base>
+
+<style is:global>
+  body { height: auto; min-height: 100%; }
+</style>
+<style>
+  .page { min-height: 100vh; display: flex; flex-direction: column; background: var(--ground); color: var(--ink); font: 16px/1.55 var(--font-body); }
+  main { flex: 1; padding: 56px 20px 72px; }
+  .box { max-width: 560px; margin: 0 auto; padding: 28px; border: 1px solid var(--rule); border-radius: 12px; background: var(--panel); }
+  h1 { margin: 0 0 8px; font: 800 26px/1.15 var(--font-display); letter-spacing: -0.02em; }
+  .muted { color: var(--muted); margin: 0 0 18px; }
+  .opt { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 12px 0; border-top: 1px solid var(--rule); cursor: pointer; }
+  .opt input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--accent); }
+  .opt small, .zip small { display: block; color: var(--muted); font-size: 14px; }
+  .stmt, .zip { display: block; margin-top: 12px; font-weight: 600; font-size: 15px; }
+  .zip small { display: inline; font-weight: 400; }
+  textarea, .zip input { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--ink) 22%, transparent); border-radius: 6px; background: var(--ground); color: var(--ink); font: 16px var(--font-body); }
+  .zip input { max-width: 160px; }
+  button { margin-top: 20px; height: 46px; padding: 0 22px; border: 0; border-radius: 6px; background: var(--accent); color: #fff; font: 600 16px var(--font-body); cursor: pointer; }
+  button:disabled { opacity: 0.6; cursor: wait; }
+  .err { color: var(--bad); min-height: 1.5em; margin: 10px 0 0; font-size: 14px; }
+  a { color: var(--accent); }
+</style>
+
+<script>
+  import { BrowserOAuthClient } from "@atproto/oauth-client-browser";
+  import { FOLLOW_NSID, SUPPORTER_NSID, oauthClientId } from "../../lib/atproto/config";
+
+  const $ = (id: string) => document.getElementById(id)!;
+  const show = (s: "loading" | "choose" | "done" | "error") => { for (const k of ["loading", "choose", "done", "error"]) $("state-" + k).hidden = k !== s; };
+  const fail = (msg?: string) => { if (msg) $("error-msg").textContent = msg; show("error"); };
+
+  async function main() {
+    const client = await BrowserOAuthClient.load({ clientId: oauthClientId(location), handleResolver: "https://bsky.social" });
+    const result = await client.init();
+    const session = result?.session;
+    if (!session) return fail();
+    const did = session.sub;
+
+    const [profile, project] = await Promise.all([
+      fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch("/api/project.json").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]);
+    $("who").textContent = profile?.handle ? "@" + profile.handle : did;
+    if (project?.handle) $("proj").textContent = "@" + project.handle;
+    const form = $("state-choose") as HTMLFormElement;
+    const followBox = form.elements.namedItem("follow") as HTMLInputElement;
+    const supBox = form.elements.namedItem("supporter") as HTMLInputElement;
+    if (!project?.did) { followBox.checked = false; followBox.disabled = true; supBox.checked = true; } // project account not set up yet
+    supBox.addEventListener("change", () => ($("stmt-wrap").hidden = !supBox.checked));
+    $("stmt-wrap").hidden = !supBox.checked;
+    show("choose");
+
+    // create a record in the person's own repo with their session
+    const createRecord = async (collection: string, record: Record<string, unknown>, rkey?: string) => {
+      const res = await session.fetchHandler("/xrpc/com.atproto.repo.createRecord", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ repo: did, collection, record: { $type: collection, ...record }, ...(rkey ? { rkey } : {}) }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (res.ok) return out.uri as string;
+      if (rkey && /exist/i.test(out.message || out.error || "")) return `at://${did}/${collection}/${rkey}`; // already a supporter
+      throw new Error(out.message || out.error || String(res.status));
+    };
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const zip = (form.elements.namedItem("zip") as HTMLInputElement).value.trim();
+      const statement = (form.elements.namedItem("statement") as HTMLTextAreaElement).value.trim();
+      if (zip && !/^\d{5}$/.test(zip)) { $("err").textContent = "ZIP codes have 5 digits (or leave it blank)."; return; }
+      if (!followBox.checked && !supBox.checked) { $("err").textContent = "Choose at least one option."; return; }
+      const btn = form.querySelector("button")!; btn.disabled = true; $("err").textContent = "";
+      try {
+        const now = new Date().toISOString();
+        const followUri = followBox.checked ? await createRecord(FOLLOW_NSID, { subject: project.did, createdAt: now }) : null;
+        const supporterUri = supBox.checked ? await createRecord(SUPPORTER_NSID, { createdAt: now, ...(statement ? { statement } : {}) }, "self") : null;
+        const res = await fetch("/api/signup/atproto", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ did, followUri, supporterUri, zip }) });
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok || !out.ok) throw new Error(out.error || "The signup couldn't be saved.");
+        $("done-msg").textContent = [followUri && "You're following the project.", supporterUri && "Your public supporter record is in your account."].filter(Boolean).join(" ");
+        show("done");
+        await session.signOut().catch(() => {}); // revoke: we don't keep access to the account
+      } catch (err) {
+        console.error(err);
+        $("err").textContent = (err as Error).message || "Something went wrong. Please try again.";
+        btn.disabled = false;
+      }
+    });
+  }
+
+  main().catch((err) => { console.error(err); fail("Something went wrong while finishing sign-in. Please try again."); });
+</script>

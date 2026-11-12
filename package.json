@@ -4,12 +4,18 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "wrangler types && astro dev",
+    "build": "wrangler types && astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "check": "wrangler types && astro check",
+    "deploy": "astro build && wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^14.4.7",
+    "@atproto/oauth-client-browser": "^0.5.14",
     "@tailwindcss/vite": "^4.3.5",
     "astro": "^7.4.10",
     "maplibre-gl": "^5.24.0",
@@ -21,6 +27,7 @@
     "@tailwindcss/typography": "^0.5.20",
     "@types/geojson": "^7946.0.16",
     "@types/topojson-client": "^3.1.5",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "wrangler": "^4.160.1"
   }
 }

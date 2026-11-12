@@ -1,7 +1,7 @@
 ---
-// PLACEHOLDER signup: email or an AT Protocol (Bluesky) handle. Nothing is sent anywhere yet: the script below only
-// validates and shows a message. To go live, replace the submit handler with a POST to the signup endpoint
-// (email list) and, for handles, resolve the handle to a DID and store it (or follow it from the project account).
+// Signup: email (double opt-in, POST /api/signup/email) or an AT Protocol account (Bluesky or any PDS).
+// The AT Protocol path signs in with OAuth in the browser, then /oauth/callback asks what to do: follow the project
+// account and/or add a public supporter record. No password or email is shared with us on that path.
 interface Props {
   compact?: boolean;
   id?: string; // unique per page when the form appears twice (home + footer)
@@ -18,16 +18,19 @@ const { compact = false, id = "signup" } = Astro.props;
   <div class="row" data-via="email">
     <label class="vh" for={`${id}-email`}>Email address</label>
     <input id={`${id}-email`} name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" />
+    {!compact && <><label class="vh" for={`${id}-zip`}>ZIP code (optional)</label><input class="zip" id={`${id}-zip`} name="zip" type="text" inputmode="numeric" maxlength="5" autocomplete="postal-code" placeholder="ZIP (optional)" /></>}
     <button type="submit">Notify me</button>
   </div>
   <div class="row" data-via="atproto" hidden>
     <label class="vh" for={`${id}-handle`}>Bluesky or AT Protocol handle</label>
     <input id={`${id}-handle`} name="handle" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="you.bsky.social" />
-    <button type="submit">Follow</button>
+    <button type="submit">Continue</button>
   </div>
+  <!-- honeypot for bots; hidden from people and screen readers -->
+  <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
   <p class="note" data-note role="status" aria-live="polite">
-    <span data-hint="email">We'll only use your email for project updates.</span>
-    <span data-hint="atproto" hidden>Use any AT Protocol handle, from Bluesky or elsewhere. No email needed.</span>
+    <span data-hint="email">We'll email you once to confirm, then only for project updates. <a href="/privacy">Privacy</a></span>
+    <span data-hint="atproto" hidden>Sign in with Bluesky or any AT Protocol account; you choose what happens next. No email needed. <a href="/privacy">Privacy</a></span>
   </p>
 </form>
 
@@ -141,6 +144,23 @@ const { compact = false, id = "signup" } = Astro.props;
     padding: 5px 10px;
     font-size: 13px;
   }
+  .row .zip {
+    flex: 0 0 120px;
+  }
+  .hp {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+  .note a {
+    color: inherit;
+  }
+  @media (max-width: 480px) {
+    .row { flex-wrap: wrap; }
+    .row .zip { flex: 1 1 100px; }
+  }
   .vh {
     position: absolute;
     width: 1px;
@@ -152,42 +172,66 @@ const { compact = false, id = "signup" } = Astro.props;
 </style>
 
 <script>
-  // Placeholder behaviour only (see the note at the top of this file).
+  import { OAUTH_SCOPE, oauthClientId } from "../lib/atproto/config";
+
   const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   // AT Protocol handle: a domain name, e.g. alice.bsky.social or alice.com (a leading @ is allowed and stripped)
   const HANDLE = /^(?=.{3,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,61}[a-z0-9]$/i;
 
+  // messages after the email confirmation / unsubscribe links (they land on /?signup=…#updates)
+  const flash = new URLSearchParams(location.search).get("signup");
+  const FLASH = { confirmed: "You're confirmed. Thanks for following the project!", unsubscribed: "You've been unsubscribed. You won't get any more emails.", followed: "Thanks for following the project!" };
+
   for (const form of document.querySelectorAll<HTMLFormElement>("form[data-signup]")) {
     const note = form.querySelector<HTMLElement>("[data-note]")!;
-    const via = () => (form.querySelector<HTMLInputElement>('input[name="via"]:checked')?.value ?? "email");
-    const show = () => {
-      for (const el of form.querySelectorAll<HTMLElement>("[data-via]")) el.hidden = el.dataset.via !== via();
-      note.className = "note";
-      note.querySelectorAll<HTMLElement>("[data-hint]").forEach((h) => (h.hidden = h.dataset.hint !== via()));
+    const via = () => form.querySelector<HTMLInputElement>('input[name="via"]:checked')?.value ?? "email";
+    const say = (kind: "ok" | "err" | "", text: string) => {
+      note.className = "note" + (kind ? " " + kind : "");
+      note.querySelectorAll<HTMLElement>("[data-hint]").forEach((h) => (h.hidden = !!text || h.dataset.hint !== via()));
       note.querySelector("[data-msg]")?.remove();
+      if (text) { const m = document.createElement("span"); m.dataset.msg = ""; m.textContent = text; note.append(m); }
     };
+    const show = () => { for (const el of form.querySelectorAll<HTMLElement>("[data-via]")) el.hidden = el.dataset.via !== via(); say("", ""); };
     form.addEventListener("change", (e) => { if ((e.target as HTMLInputElement).name === "via") show(); });
-    form.addEventListener("submit", (e) => {
+    if (flash && FLASH[flash as keyof typeof FLASH] && !form.classList.contains("compact")) say("ok", FLASH[flash as keyof typeof FLASH]);
+
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const v = via();
-      const input = form.querySelector<HTMLInputElement>(v === "email" ? 'input[name="email"]' : 'input[name="handle"]')!;
-      const value = input.value.trim().replace(/^@/, "");
-      const valid = v === "email" ? EMAIL.test(value) : HANDLE.test(value);
-      input.setAttribute("aria-invalid", String(!valid));
-      note.querySelectorAll<HTMLElement>("[data-hint]").forEach((h) => (h.hidden = true));
-      note.querySelector("[data-msg]")?.remove();
-      const msg = document.createElement("span");
-      msg.dataset.msg = "";
-      if (!valid) {
-        note.className = "note err";
-        msg.textContent = v === "email" ? "Please enter a valid email address." : "Please enter a handle like you.bsky.social.";
-        input.focus();
+      const btn = form.querySelector<HTMLButtonElement>(`[data-via="${via()}"] button`)!;
+      if (via() === "email") {
+        const input = form.querySelector<HTMLInputElement>('input[name="email"]')!;
+        const zip = form.querySelector<HTMLInputElement>('input[name="zip"]')?.value.trim() ?? "";
+        const email = input.value.trim();
+        if (!EMAIL.test(email)) { input.setAttribute("aria-invalid", "true"); input.focus(); return say("err", "Please enter a valid email address."); }
+        if (zip && !/^\d{5}$/.test(zip)) return say("err", "ZIP codes have 5 digits (or leave it blank).");
+        input.removeAttribute("aria-invalid"); btn.disabled = true;
+        try {
+          const res = await fetch("/api/signup/email", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, zip, website: (form.elements.namedItem("website") as HTMLInputElement)?.value }) });
+          const out = await res.json().catch(() => ({}));
+          if (!res.ok || !out.ok) return say("err", out.error || "Something went wrong. Please try again.");
+          input.value = "";
+          say("ok", out.confirm ? "Almost done: check your inbox for a confirmation link." : "You're already signed up. Thanks!");
+        } catch { say("err", "Couldn't reach the server. Please try again."); }
+        finally { btn.disabled = false; }
       } else {
-        note.className = "note ok";
-        msg.textContent = "Thanks! Sign-ups aren't connected yet, so nothing was sent. Check back soon.";
-        input.value = "";
+        const input = form.querySelector<HTMLInputElement>('input[name="handle"]')!;
+        const handle = input.value.trim().replace(/^@/, "");
+        if (!HANDLE.test(handle)) { input.setAttribute("aria-invalid", "true"); input.focus(); return say("err", "Please enter a handle like you.bsky.social."); }
+        input.removeAttribute("aria-invalid");
+        // the AT Protocol loopback client used in development must run on 127.0.0.1, not localhost
+        if (location.hostname === "localhost") { location.href = location.href.replace("//localhost", "//127.0.0.1"); return; }
+        btn.disabled = true; say("", "Opening your account's sign-in page…");
+        try {
+          const { BrowserOAuthClient } = await import("@atproto/oauth-client-browser");
+          const client = await BrowserOAuthClient.load({ clientId: oauthClientId(location), handleResolver: "https://bsky.social" });
+          sessionStorage.setItem("zd-oauth-return", location.pathname);
+          await client.signIn(handle, { scope: OAUTH_SCOPE }); // navigates away; returns only on failure
+        } catch (err) {
+          console.error(err);
+          say("err", "Couldn't start sign-in for that handle. Check it and try again.");
+          btn.disabled = false;
+        }
       }
-      note.append(msg);
     });
   }
 </script>
