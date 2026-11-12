@@ -98,13 +98,13 @@ summary { cursor: pointer; color: var(--ink); font-weight: 600; }
 .tip .t2 { color: var(--muted); }
 .lbl { font: 700 11.5px/1 var(--font-body); color: #15181d; pointer-events: none; white-space: nowrap; text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; }
 #map.dark-map:not([data-map-theme="lunar"]) .lbl { color: #f2f5f9; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 3px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; }
-.legend { position: absolute; right: 10px; bottom: 30px; z-index: 2; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; font-size: 13px; max-width: 260px; box-shadow: 0 1px 3px rgba(0,0,0,.1); display: grid; gap: 7px; }
+.legend { position: absolute; right: 10px; bottom: 44px; z-index: 2; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; font-size: 13px; max-width: 260px; box-shadow: 0 1px 3px rgba(0,0,0,.1); display: grid; gap: 7px; }
 .legend .li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
 .legend .k { width: 22px; height: 14px; border-radius: 2px; margin-top: 2px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
 .legend small { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; }
 .legend-toggle { font: 700 12.5px var(--font-body); color: var(--ink); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
 .legend.collapsed .li { display: none; }
-@media (max-width: 760px) { .legend { bottom: 26px; max-width: 200px; } }
+@media (max-width: 760px) { .legend { bottom: 40px; max-width: 200px; } }
 /* Alaska + Hawaii, drawn into empty space below the Southwest (positioned from lon/lat in the script; no frames) */
 .insets { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .insets[hidden] { display: none; }
@@ -116,6 +116,9 @@ summary { cursor: pointer; color: var(--ink); font-weight: 600; }
 .loading .bar { width: 220px; height: 4px; background: var(--rule); border-radius: 4px; overflow: hidden; margin-top: 8px; }
 .loading .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 .maplibregl-ctrl-attrib { font-size: 10px; }
+/* attribution: plain text, no pill or outline */
+#map .maplibregl-ctrl-attrib, #map .maplibregl-ctrl-attrib.maplibregl-compact-show { background: transparent; border: 0; box-shadow: none; outline: 0; }
+#map.dark-map .maplibregl-ctrl-attrib-inner { color: #c7ced8; }
 @media (max-width: 760px) {
   .app { grid-template-columns: 1fr; grid-template-rows: 55% 45%; }
   aside { order: 2; border-right: 0; border-top: 1px solid var(--rule); padding: 18px 16px 28px; gap: 22px; }

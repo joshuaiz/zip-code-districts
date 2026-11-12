@@ -110,8 +110,9 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
   const DIST_W = [[3, 0.4], [7, 1.2], [11, 2.4]], STATE_W = [[3, 1], [7, 2.4], [11, 3.6]];
   // projection: "globe" (default; true north, the U.S. curves like a conic reference map, flattening as you zoom in)
   // or "mercator" (flat). Remembered per browser.
-  let PROJ = "globe";
-  try { if (localStorage.getItem("zd-proj") === "mercator") PROJ = "mercator"; } catch (e) {}
+  // default: Flat on phones (more of the map on a small screen), Globe elsewhere; a saved choice wins
+  let PROJ = window.innerWidth < 760 ? "mercator" : "globe";
+  try { const saved = localStorage.getItem("zd-proj"); if (saved === "mercator" || saved === "globe") PROJ = saved; } catch (e) {}
   const VIEWS = { l48: [[-127, 17], [-66.8, 49.5]], ak: [[-170, 51], [-129.5, 71.5]], hi: [[-160.5, 18.8], [-154.6, 22.4]] };
   const NAMES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
   // data folder relative to the site base, so fetches work from any route
